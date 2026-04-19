@@ -5,7 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2f43c224-60f2-4386-9f7d-2d0c0d92b6ed" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/FrontEndApp/eslint.config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FrontEndApp/src/styles/main.scss" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/FrontEndApp/src/styles/variables.scss" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/src/App.vue" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/src/App.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/src/main.ts" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/src/main.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/src/style.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/src/views/HubPage.vue" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/src/views/HubPage.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/vite.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/vite.config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FrontEndApp/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/FrontEndApp/yarn.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,7 +78,7 @@
       <updated>1776542228227</updated>
       <workItem from="1776542229225" duration="778000" />
       <workItem from="1776543042518" duration="10857000" />
-      <workItem from="1776602932843" duration="3787000" />
+      <workItem from="1776602932843" duration="6058000" />
     </task>
     <servers />
   </component>
