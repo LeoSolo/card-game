@@ -10,6 +10,29 @@ export type CombatActor = {
   statuses: Partial<Record<StatusId, number>>;
 };
 
+export type EnemyIntent =
+  | {
+      type: 'attack';
+      damage: number;
+      hits: number;
+      label: string;
+    }
+  | {
+      type: 'block';
+      block: number;
+      label: string;
+    }
+  | {
+      type: 'debuff';
+      status: StatusId;
+      amount: number;
+      label: string;
+    };
+
+export type CombatEnemy = CombatActor & {
+  intent: EnemyIntent;
+};
+
 export type CombatPhase = 'playerTurn' | 'enemyTurn' | 'won' | 'lost';
 
 export type CombatLogItem = {
@@ -25,7 +48,7 @@ export type CombatState = {
   handSize: number;
   maxHandSize: number;
   player: CombatActor;
-  enemy: CombatActor;
+  enemies: CombatEnemy[];
   drawPile: CardInstance[];
   hand: CardInstance[];
   discardPile: CardInstance[];

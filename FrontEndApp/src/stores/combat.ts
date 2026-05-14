@@ -28,12 +28,12 @@ export const useCombatStore = defineStore('combat', () => {
     }
   };
 
-  const playCardFromHand = (cardInstanceId: string): void => {
+  const playCardFromHand = (cardInstanceId: string, targetEnemyId?: string): void => {
     if (!state.value) {
       return;
     }
 
-    playCard(state.value, cardInstanceId);
+    playCard(state.value, cardInstanceId, targetEnemyId);
   };
 
   const endTurn = (): void => {

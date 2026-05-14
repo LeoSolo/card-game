@@ -2,6 +2,8 @@ export type CardType = 'attack' | 'skill' | 'talent';
 
 export type CardRarity = 'starter' | 'common' | 'uncommon' | 'rare';
 
+export type CardTargetType = 'enemy' | 'all-enemies' | 'self';
+
 export type StatusId =
   | 'aim'
   | 'burn'
@@ -9,7 +11,7 @@ export type StatusId =
   | 'vulnerable'
   | 'reinforcedBattery';
 
-export type CombatTarget = 'enemy' | 'player';
+export type CombatTarget = 'enemy' | 'all-enemies' | 'player';
 
 export type CardEffect =
   | {
@@ -42,6 +44,7 @@ export type CardDefinition = {
   id: string;
   name: string;
   type: CardType;
+  target: CardTargetType;
   rarity: CardRarity;
   cost: number;
   exhaust?: boolean;
