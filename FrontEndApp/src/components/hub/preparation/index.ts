@@ -1,0 +1,1 @@
+export { default as PrepareModal } from './component.vue';
