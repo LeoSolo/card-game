@@ -1,7 +1,8 @@
 import { getCardById } from '@/game/cards/starterCards';
 import type { CardEffect, CardInstance } from '@/game/cards/cardTypes';
 import type { EquipmentModifier } from '@/game/equipment/equipmentTypes';
-import type { CombatActor, CombatState } from './combatTypes';
+import type { CombatActor, CombatEnemy, CombatState } from './combatTypes';
+import { createEnemyIntent } from './createCombat';
 import { shuffle } from './random';
 
 const addLog = (state: CombatState, text: string): void => {
@@ -22,8 +23,16 @@ const getModifierSum = (
     .filter((modifier) => modifier.type === type)
     .reduce((total, modifier) => total + modifier.amount, 0);
 
-const getTarget = (state: CombatState, target: 'player' | 'enemy'): CombatActor =>
-  target === 'player' ? state.player : state.enemy;
+const getAliveEnemies = (state: CombatState): CombatEnemy[] =>
+  state.enemies.filter((enemy) => enemy.hp > 0);
+
+const getEnemyById = (state: CombatState, enemyId?: string): CombatEnemy | undefined => {
+  if (enemyId) {
+    return state.enemies.find((enemy) => enemy.id === enemyId && enemy.hp > 0);
+  }
+
+  return getAliveEnemies(state)[0];
+};
 
 const dealDamage = (
   state: CombatState,
@@ -91,9 +100,9 @@ const applyStatus = (
 };
 
 const checkCombatResult = (state: CombatState): void => {
-  if (state.enemy.hp <= 0) {
+  if (getAliveEnemies(state).length === 0) {
     state.phase = 'won';
-    addLog(state, 'Победа.');
+    addLog(state, 'Победа. Все противники уничтожены.');
     return;
   }
 
@@ -159,7 +168,24 @@ export const startPlayerTurn = (state: CombatState): void => {
   addLog(state, `Ход ${state.turn}. Энергия восстановлена.`);
 };
 
-export const playCard = (state: CombatState, cardInstanceId: string): void => {
+const movePlayedCard = (
+  state: CombatState,
+  cardInstance: CardInstance,
+  shouldExhaust: boolean,
+): void => {
+  if (shouldExhaust) {
+    state.exhaustPile.push(cardInstance);
+    return;
+  }
+
+  state.discardPile.push(cardInstance);
+};
+
+export const playCard = (
+  state: CombatState,
+  cardInstanceId: string,
+  targetEnemyId?: string,
+): void => {
   if (state.phase !== 'playerTurn') {
     return;
   }
@@ -172,6 +198,13 @@ export const playCard = (state: CombatState, cardInstanceId: string): void => {
   }
 
   const card = getCardById(cardInstance.cardId);
+  const needsEnemyTarget = card.target === 'enemy';
+  const targetEnemy = needsEnemyTarget ? getEnemyById(state, targetEnemyId) : undefined;
+
+  if (needsEnemyTarget && !targetEnemy) {
+    addLog(state, `Для карты "${card.name}" нужно выбрать живого противника.`);
+    return;
+  }
 
   if (state.energy < card.cost) {
     addLog(state, `Недостаточно энергии для карты "${card.name}".`);
@@ -185,12 +218,22 @@ export const playCard = (state: CombatState, cardInstanceId: string): void => {
 
   card.effects.forEach((effect) => {
     if (effect.type === 'damage') {
-      dealDamage(state, getTarget(state, effect.target), effect.amount);
+      if (effect.target === 'all-enemies') {
+        getAliveEnemies(state).forEach((enemy) => dealDamage(state, enemy, effect.amount));
+        return;
+      }
+
+      dealDamage(state, effect.target === 'player' ? state.player : targetEnemy!, effect.amount);
       return;
     }
 
     if (effect.type === 'block') {
-      applyBlock(state, getTarget(state, effect.target), effect.amount, card.type);
+      if (effect.target === 'all-enemies') {
+        getAliveEnemies(state).forEach((enemy) => applyBlock(state, enemy, effect.amount, card.type));
+        return;
+      }
+
+      applyBlock(state, effect.target === 'player' ? state.player : targetEnemy!, effect.amount, card.type);
       return;
     }
 
@@ -206,7 +249,12 @@ export const playCard = (state: CombatState, cardInstanceId: string): void => {
     }
 
     if (effect.type === 'applyStatus') {
-      applyStatus(state, getTarget(state, effect.target), effect);
+      if (effect.target === 'all-enemies') {
+        getAliveEnemies(state).forEach((enemy) => applyStatus(state, enemy, effect));
+        return;
+      }
+
+      applyStatus(state, effect.target === 'player' ? state.player : targetEnemy!, effect);
     }
   });
 
@@ -214,31 +262,55 @@ export const playCard = (state: CombatState, cardInstanceId: string): void => {
   checkCombatResult(state);
 };
 
-const movePlayedCard = (
-  state: CombatState,
-  cardInstance: CardInstance,
-  shouldExhaust: boolean,
-): void => {
-  if (shouldExhaust) {
-    state.exhaustPile.push(cardInstance);
+const performEnemyIntent = (state: CombatState, enemy: CombatEnemy): void => {
+  if (enemy.hp <= 0) {
     return;
   }
 
-  state.discardPile.push(cardInstance);
+  const intent = enemy.intent;
+
+  if (intent.type === 'attack') {
+    for (let hit = 0; hit < intent.hits; hit += 1) {
+      dealDamage(state, state.player, intent.damage);
+    }
+    return;
+  }
+
+  if (intent.type === 'block') {
+    enemy.block += intent.block;
+    addLog(state, `${enemy.name} получает ${intent.block} брони.`);
+    return;
+  }
+
+  if (intent.type === 'debuff') {
+    applyStatus(state, state.player, {
+      type: 'applyStatus',
+      target: 'player',
+      status: intent.status,
+      amount: intent.amount,
+    });
+  }
 };
 
 const enemyTurn = (state: CombatState): void => {
   state.phase = 'enemyTurn';
 
-  const baseDamage = 7;
-  dealDamage(state, state.player, baseDamage);
+  getAliveEnemies(state).forEach((enemy) => {
+    performEnemyIntent(state, enemy);
+  });
 
-  applyEndOfTurnStatuses(state, state.enemy);
+  state.enemies.forEach((enemy) => applyEndOfTurnStatuses(state, enemy));
   checkCombatResult(state);
 
   if (state.phase === 'won' || state.phase === 'lost') {
     return;
   }
+
+  state.enemies.forEach((enemy) => {
+    if (enemy.hp > 0) {
+      enemy.intent = createEnemyIntent();
+    }
+  });
 
   state.turn += 1;
   startPlayerTurn(state);
@@ -251,7 +323,7 @@ export const endPlayerTurn = (state: CombatState): void => {
 
   discardHand(state);
   resetPlayerBlockAtEndOfTurn(state);
-  applyEndOfTurnStatuses(state, state.enemy);
+  state.enemies.forEach((enemy) => applyEndOfTurnStatuses(state, enemy));
   checkCombatResult(state);
 
   if (state.phase === 'won' || state.phase === 'lost') {

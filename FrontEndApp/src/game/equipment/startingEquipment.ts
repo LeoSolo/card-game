@@ -9,16 +9,16 @@ export const startingRifle: EquipmentItem = {
   modifiers: [],
 };
 
-export const scoutShield: EquipmentItem = {
-  id: 'scout-shield',
-  name: 'Скаутский щит',
+export const shieldEmitter: EquipmentItem = {
+  id: 'shield-emitter-mk1',
+  name: 'Генератор энергетического щита Mk.I',
   slot: 'utility',
   rarity: 'gray',
-  description: 'Прототип складного щита. Позже этот слот сможет давать побег, деньги или лут.',
+  description: 'Создаёт защитную энергетическую сферу вокруг искательницы. Позже этот слот сможет давать побег, деньги или лут.',
   modifiers: [],
 };
 
 export const startingEquipment: EquippedItems = {
   weapon: startingRifle,
-  utility: scoutShield,
+  utility: shieldEmitter,
 };
