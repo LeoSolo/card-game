@@ -18,8 +18,20 @@ const enemyIntents: EnemyIntent[] = [
   { type: 'debuff', status: 'weak', amount: 1, label: 'Дебафф' },
 ];
 
-export const createEnemyIntent = (): EnemyIntent => {
-  const intent = enemyIntents[Math.floor(Math.random() * enemyIntents.length)];
+export const createEnemyIntent = (previousIntent?: EnemyIntent): EnemyIntent => {
+  const availableIntents = enemyIntents.filter((intent) => {
+    if (!previousIntent || previousIntent.type === 'attack') {
+      return true;
+    }
+
+    if (intent.type === 'attack') {
+      return true;
+    }
+
+    return intent.type !== previousIntent.type;
+  });
+  const intent = availableIntents[Math.floor(Math.random() * availableIntents.length)];
+
   return { ...intent };
 };
 

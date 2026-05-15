@@ -709,9 +709,10 @@ onBeforeUnmount(() => {
 }
 
 .player-bars {
-  left: 82px;
-  top: 340px;
+  left: 50%;
+  top: 360px;
   width: 250px;
+  transform: translateX(-50%);
 }
 
 .hp-row {

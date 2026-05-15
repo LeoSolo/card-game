@@ -307,7 +307,7 @@ const enemyTurn = (state: CombatState): void => {
 
   state.enemies.forEach((enemy) => {
     if (enemy.hp > 0) {
-      enemy.intent = createEnemyIntent();
+      enemy.intent = createEnemyIntent(enemy.intent);
     }
   });
 
