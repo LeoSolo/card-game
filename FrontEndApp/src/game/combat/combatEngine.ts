@@ -149,7 +149,7 @@ const reduceTemporaryStatuses = (actor: CombatActor): void => {
   });
 };
 
-const resetPlayerBlockAtEndOfTurn = (state: CombatState): void => {
+const resetPlayerBlockAfterEnemyTurn = (state: CombatState): void => {
   if ((state.player.statuses.reinforcedBattery ?? 0) > 0) {
     state.player.block = Math.floor(state.player.block * 0.5);
     addLog(state, `Усиленная батарея сохраняет ${state.player.block} брони.`);
@@ -157,6 +157,12 @@ const resetPlayerBlockAtEndOfTurn = (state: CombatState): void => {
   }
 
   state.player.block = 0;
+};
+
+const resetEnemyBlockAfterPlayerTurn = (state: CombatState): void => {
+  state.enemies.forEach((enemy) => {
+    enemy.block = 0;
+  });
 };
 
 export const startPlayerTurn = (state: CombatState): void => {
@@ -297,6 +303,8 @@ const enemyTurn = (state: CombatState): void => {
     return;
   }
 
+  resetPlayerBlockAfterEnemyTurn(state);
+
   state.enemies.forEach((enemy) => {
     if (enemy.hp > 0) {
       enemy.intent = createEnemyIntent();
@@ -314,10 +322,9 @@ export const endPlayerTurn = (state: CombatState): void => {
   }
 
   discardHand(state);
-  resetPlayerBlockAtEndOfTurn(state);
+  resetEnemyBlockAfterPlayerTurn(state);
   state.enemies.forEach((enemy) => {
     applyEndOfTurnStatuses(state, enemy);
-    enemy.block = 0;
   });
   checkCombatResult(state);
 
