@@ -6,7 +6,7 @@
       <div class="top-stat hp">♥ {{ combatState.player.hp }}/{{ combatState.player.maxHp }}</div>
       <div class="top-stat money">💰 {{ money }}</div>
       <div class="top-spacer"></div>
-      <div class="deck-size">Колода 🂠 {{ totalDeckSize }}</div>
+      <button type="button" class="deck-size" @click="openCardModal('deck')">Колода 🂠 {{ totalDeckSize }}</button>
       <button type="button" class="settings-button" @click="combatStore.restartCombat">↻</button>
     </header>
 
@@ -53,23 +53,23 @@
           :class="{
             defeated: enemy.hp <= 0,
             targetable: isAiming && enemy.hp > 0,
-            hovered: hoveredEnemyId === enemy.id,
+            hovered: isAiming && hoveredEnemyId === enemy.id,
           }"
           :data-enemy-id="enemy.id"
         >
-          <div class="intent-card" :class="`intent-${enemy.intent.type}`">
+          <div v-if="enemy.hp > 0" class="intent-card" :class="`intent-${enemy.intent.type}`">
             <strong>{{ intentTitle(enemy.intent) }}</strong>
             <span>{{ intentDescription(enemy.intent) }}</span>
           </div>
 
-          <div class="intent-icon-row">
+          <div v-if="enemy.hp > 0" class="intent-icon-row">
             <strong v-if="enemy.intent.type === 'attack'">{{ enemy.intent.damage * enemy.intent.hits }}</strong>
             <span>{{ getIntentIcon(enemy.intent.type) }}</span>
           </div>
 
           <div class="enemy-core" :class="`enemy-${enemy.id}`"></div>
 
-          <div class="actor-bars enemy-bars">
+          <div v-if="enemy.hp > 0" class="actor-bars enemy-bars">
             <div class="hp-row">
               <span v-if="enemy.block > 0" class="block-chip">{{ enemy.block }}</span>
               <div class="hp-bar" :class="{ shielded: enemy.block > 0 }">
@@ -90,11 +90,11 @@
           <span>Энергия</span>
         </div>
 
-        <div class="pile draw-pile">
+        <button type="button" class="pile draw-pile" @click="openCardModal('draw')">
           <div class="pile-icon">🂠</div>
           <strong>{{ combatState.drawPile.length }}</strong>
           <span>Колода</span>
-        </div>
+        </button>
 
         <div class="hand">
           <article
@@ -122,12 +122,40 @@
 
         <button type="button" class="end-turn-button" @click="combatStore.endTurn">Завершить ход</button>
 
-        <div class="pile discard-pile">
+        <button type="button" class="pile discard-pile" @click="openCardModal('discard')">
           <div class="pile-icon">↻</div>
           <strong>{{ combatState.discardPile.length }}</strong>
           <span>Сброс</span>
-        </div>
+        </button>
       </section>
+    </section>
+
+    <section v-if="cardModalType" class="card-modal-backdrop" @click.self="closeCardModal">
+      <div class="card-modal" role="dialog" aria-modal="true">
+        <header class="card-modal-header">
+          <div>
+            <h2>{{ cardModalTitle }}</h2>
+            <p>{{ modalCards.length }} карт</p>
+          </div>
+          <button type="button" class="modal-close-button" @click="closeCardModal">×</button>
+        </header>
+
+        <div v-if="modalCards.length > 0" class="modal-card-grid">
+          <article
+            v-for="card in modalCards"
+            :key="card.instanceId"
+            class="modal-card"
+            :class="`modal-card-${card.definition.type}`"
+          >
+            <span class="modal-card-cost">{{ card.definition.cost }}</span>
+            <strong>{{ card.definition.name }}</strong>
+            <small>{{ cardTypeLabels[card.definition.type] }}</small>
+            <p>{{ card.definition.description }}</p>
+          </article>
+        </div>
+
+        <p v-else class="empty-modal-text">Здесь пока нет карт.</p>
+      </div>
     </section>
 
     <section v-if="combatState.phase !== 'playerTurn'" class="result-panel">
@@ -142,7 +170,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCombatStore } from '@/stores/combat';
-import type { CardTargetType, CardType, StatusId } from '@/game/cards/cardTypes';
+import { getCardById } from '@/game/cards/starterCards';
+import type { CardDefinition, CardInstance, CardTargetType, CardType, StatusId } from '@/game/cards/cardTypes';
 import type { EnemyIntent } from '@/game/combat/combatTypes';
 
 const router = useRouter();
@@ -163,6 +192,13 @@ const dragState = ref<DragState | null>(null);
 const hoveredEnemyId = ref<string | null>(null);
 const viewportWidth = ref(window.innerWidth);
 const viewportHeight = ref(window.innerHeight);
+
+type CardModalType = 'deck' | 'draw' | 'discard';
+type ModalCard = CardInstance & {
+  definition: CardDefinition;
+};
+
+const cardModalType = ref<CardModalType | null>(null);
 
 const cardTypeLabels: Record<CardType, string> = {
   attack: 'Атака',
@@ -209,6 +245,38 @@ const totalDeckSize = computed(() => {
     combatState.value.discardPile.length +
     combatState.value.exhaustPile.length
   );
+});
+
+const cardModalTitle = computed(() => {
+  if (cardModalType.value === 'draw') {
+    return 'Колода добора';
+  }
+
+  if (cardModalType.value === 'discard') {
+    return 'Сброс';
+  }
+
+  return 'Текущая колода';
+});
+
+const modalCards = computed<ModalCard[]>(() => {
+  const state = combatState.value;
+
+  if (!state || !cardModalType.value) {
+    return [];
+  }
+
+  const cardInstances =
+    cardModalType.value === 'draw'
+      ? state.drawPile
+      : cardModalType.value === 'discard'
+        ? state.discardPile
+        : [...state.drawPile, ...state.hand, ...state.discardPile, ...state.exhaustPile];
+
+  return cardInstances.map((cardInstance) => ({
+    ...cardInstance,
+    definition: getCardById(cardInstance.cardId),
+  }));
 });
 
 const arrowPath = computed(() => {
@@ -388,7 +456,7 @@ const onPointerMove = (event: PointerEvent): void => {
 
   dragState.value.currentX = event.clientX;
   dragState.value.currentY = event.clientY;
-  hoveredEnemyId.value = findEnemyUnderPointer(event.clientX, event.clientY);
+  hoveredEnemyId.value = isAiming.value ? findEnemyUnderPointer(event.clientX, event.clientY) : null;
 };
 
 const onPointerUp = (event: PointerEvent): void => {
@@ -418,6 +486,14 @@ const onPointerUp = (event: PointerEvent): void => {
 const updateViewportSize = (): void => {
   viewportWidth.value = window.innerWidth;
   viewportHeight.value = window.innerHeight;
+};
+
+const openCardModal = (type: CardModalType): void => {
+  cardModalType.value = type;
+};
+
+const closeCardModal = (): void => {
+  cardModalType.value = null;
 };
 
 const goHub = (): void => {
@@ -501,8 +577,18 @@ onBeforeUnmount(() => {
 }
 
 .deck-size {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 13px;
   color: #d9e4ee;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
   font-size: 18px;
+  font-weight: 800;
+}
+
+.deck-size:hover {
+  background: rgba(123, 211, 255, 0.18);
 }
 
 .battlefield {
@@ -850,7 +936,7 @@ onBeforeUnmount(() => {
 
 .enemy-bars {
   left: 50%;
-  top: 366px;
+  top: 386px;
   width: 230px;
   transform: translateX(-50%);
 }
@@ -901,7 +987,9 @@ onBeforeUnmount(() => {
   gap: 5px;
   border: 1px solid rgba(255, 255, 255, 0.17);
   border-radius: 12px;
+  color: #edf2f7;
   background: rgba(8, 12, 18, 0.78);
+  cursor: pointer;
 
   .pile-icon {
     width: 46px;
@@ -923,6 +1011,11 @@ onBeforeUnmount(() => {
     font-size: 13px;
     text-transform: uppercase;
   }
+}
+
+.pile:hover {
+  border-color: rgba(123, 211, 255, 0.58);
+  background: rgba(20, 39, 55, 0.86);
 }
 
 .hand {
@@ -1051,6 +1144,135 @@ onBeforeUnmount(() => {
   font-size: 22px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.card-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 280;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.64);
+  backdrop-filter: blur(3px);
+}
+
+.card-modal {
+  width: min(1050px, calc(100vw - 80px));
+  max-height: min(760px, calc(100vh - 80px));
+  overflow: hidden;
+  border: 1px solid rgba(143, 224, 255, 0.24);
+  border-radius: 22px;
+  background: rgba(8, 12, 18, 0.97);
+  box-shadow: 0 30px 110px rgba(0, 0, 0, 0.62), 0 0 32px rgba(75, 190, 255, 0.14);
+}
+
+.card-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+  h2 {
+    margin: 0;
+    font-size: 28px;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: #9fb0c0;
+  }
+}
+
+.modal-close-button {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  color: #edf7ff;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.modal-card-grid {
+  max-height: calc(min(760px, 100vh - 80px) - 96px);
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  padding: 24px 26px 30px;
+}
+
+.modal-card {
+  position: relative;
+  min-height: 198px;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 8px;
+  padding: 26px 14px 14px;
+  border: 2px solid rgba(91, 199, 255, 0.66);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #26313d, #101620 72%);
+
+  &.modal-card-attack {
+    border-color: rgba(255, 92, 88, 0.72);
+  }
+
+  &.modal-card-talent {
+    border-color: rgba(242, 198, 72, 0.74);
+  }
+
+  strong {
+    text-align: center;
+    font-size: 16px;
+    line-height: 1.15;
+  }
+
+  small {
+    justify-self: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #1a2430;
+    background: #c8d5df;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  p {
+    margin: 0;
+    color: #edf4f9;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+}
+
+.modal-card-cost {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #8ee3ff;
+  border-radius: 50%;
+  color: #fff;
+  background: #174b6a;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.empty-modal-text {
+  margin: 0;
+  padding: 42px;
+  color: #aeb8c3;
+  text-align: center;
+  font-size: 18px;
 }
 
 .result-panel {
