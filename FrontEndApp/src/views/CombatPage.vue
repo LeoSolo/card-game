@@ -216,7 +216,77 @@
       </div>
     </section>
 
-    <section v-if="combatState.phase !== 'playerTurn'" class='result-panel'>
+    <section v-if='showRewardModal' class='modal-backdrop reward-backdrop'>
+      <div class='reward-modal'>
+        <h2>Награда за бой</h2>
+        <p class='reward-subtitle'>Забери награды перед возвращением на маршрут.</p>
+
+        <div class='reward-grid'>
+          <button
+            v-if='rewardState && !rewardState.isCardRewardTaken'
+            type='button'
+            class='reward-tile card-reward-tile'
+            @click='openCardRewardModal'
+          >
+            <strong>Выбрать карту</strong>
+            <span>Одна из трёх случайных карт Татьяны</span>
+          </button>
+
+          <button
+            v-if='rewardState && !rewardState.isMoneyTaken'
+            type='button'
+            class='reward-tile money-reward-tile'
+            @click='combatStore.claimMoneyReward'
+          >
+            <strong>₽ {{ rewardState.money }}</strong>
+            <span>Деньги</span>
+          </button>
+
+          <button
+            v-if='rewardState && rewardState.loot.length > 0 && !rewardState.isLootTaken'
+            type='button'
+            class='reward-tile loot-reward-tile'
+            @click='combatStore.claimLootReward'
+          >
+            <strong>Лут</strong>
+            <span v-for='item in rewardState.loot' :key='item.id'>{{ item.name }}</span>
+          </button>
+
+          <article v-if='rewardState && rewardState.loot.length === 0' class='reward-tile empty-loot-tile'>
+            <strong>Лут не найден</strong>
+            <span>В этот раз ничего ценного не выпало.</span>
+          </article>
+        </div>
+
+        <button type='button' class='reward-continue-button' @click='goHub'>Продолжить</button>
+      </div>
+    </section>
+
+    <section v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop' @click.self='closeCardRewardModal'>
+      <div class='card-reward-modal'>
+        <button type='button' class='modal-close' @click='closeCardRewardModal'>×</button>
+        <h2>Выберите карту</h2>
+        <div class='reward-card-choice-grid'>
+          <article
+            v-for='card in rewardState.cardChoices'
+            :key='card.id'
+            class='reward-card-choice'
+            :class='[
+              `reward-card-${card.type}`,
+              { flying: flyingRewardCardId === card.id },
+            ]'
+            @click='selectRewardCard(card.id)'
+          >
+            <span class='reward-card-cost'>{{ card.cost }}</span>
+            <strong>{{ card.name }}</strong>
+            <small>{{ cardTypeLabels[card.type] }} · {{ rarityLabels[card.rarity] }}</small>
+            <p>{{ card.description }}</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="combatState.phase === 'lost'" class='result-panel'>
       <h2>{{ resultTitle }}</h2>
       <p>{{ resultDescription }}</p>
       <button type='button' @click='goHub'>Вернуться в хаб</button>
@@ -237,7 +307,7 @@ const router = useRouter();
 const combatStore = useCombatStore();
 const combatState = computed(() => combatStore.state);
 
-const money = 99;
+const money = computed(() => combatState.value?.money ?? 0);
 
 type DragState = {
   cardInstanceId: string;
@@ -269,11 +339,20 @@ const viewportHeight = ref(window.innerHeight);
 const cardModalType = ref<CardModalType | null>(null);
 const inventoryModalOpen = ref(false);
 const handElement = ref<HTMLElement | null>(null);
+const cardRewardModalOpen = ref(false);
+const flyingRewardCardId = ref<string | null>(null);
 
 const cardTypeLabels: Record<CardType, string> = {
   attack: 'Атака',
   skill: 'Навык',
   talent: 'Талант',
+};
+
+const rarityLabels: Record<CardDefinition['rarity'], string> = {
+  starter: 'Стартовая',
+  common: 'Серая',
+  uncommon: 'Зелёная',
+  rare: 'Синяя',
 };
 
 const statusLabels: Record<StatusId, string> = {
@@ -310,6 +389,12 @@ const draggedCard = computed(() => {
 const isAiming = computed(() => dragState.value !== null && draggedCard.value?.definition.target === 'enemy');
 
 const playerStatuses = computed(() => (combatState.value ? formatStatuses(combatState.value.player.statuses) : []));
+
+const rewardState = computed(() => combatState.value?.reward ?? null);
+
+const showRewardModal = computed(() =>
+  combatState.value?.phase === 'won' && rewardState.value !== null && !cardRewardModalOpen.value,
+);
 
 const playerHpPercent = computed(() => {
   if (!combatState.value) {
@@ -643,6 +728,32 @@ const openInventoryModal = (): void => {
 
 const closeInventoryModal = (): void => {
   inventoryModalOpen.value = false;
+};
+
+const openCardRewardModal = (): void => {
+  cardRewardModalOpen.value = true;
+};
+
+const closeCardRewardModal = (): void => {
+  if (flyingRewardCardId.value) {
+    return;
+  }
+
+  cardRewardModalOpen.value = false;
+};
+
+const selectRewardCard = (cardId: string): void => {
+  if (flyingRewardCardId.value) {
+    return;
+  }
+
+  flyingRewardCardId.value = cardId;
+
+  window.setTimeout(() => {
+    combatStore.chooseCardReward(cardId);
+    flyingRewardCardId.value = null;
+    cardRewardModalOpen.value = false;
+  }, 650);
 };
 
 const goHub = (): void => {
@@ -1405,6 +1516,153 @@ onBeforeUnmount(() => {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 16px;
+}
+
+
+.reward-modal,
+.card-reward-modal {
+  position: relative;
+  width: min(980px, calc(100vw - 72px));
+  max-height: min(760px, calc(100vh - 72px));
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid rgba(130, 222, 255, 0.28);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
+  box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
+}
+
+.reward-subtitle {
+  margin: 0 0 22px;
+  color: #b9ccd8;
+}
+
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.reward-tile {
+  display: grid;
+  min-height: 150px;
+  gap: 8px;
+  align-content: center;
+  padding: 18px;
+  border: 1px solid rgba(151, 225, 255, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eaf8ff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.reward-tile strong {
+  font-size: 22px;
+}
+
+.reward-tile span {
+  color: #b8ccd8;
+  font-size: 13px;
+}
+
+.empty-loot-tile {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.reward-continue-button {
+  min-height: 46px;
+  margin-top: 22px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 15px;
+  background: #73e4ff;
+  color: #06111d;
+  cursor: pointer;
+  font-weight: 1000;
+}
+
+.reward-card-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.reward-card-choice {
+  position: relative;
+  display: grid;
+  min-height: 260px;
+  grid-template-rows: 36px 24px 1fr;
+  gap: 10px;
+  padding: 18px;
+  border: 2px solid rgba(214, 236, 255, 0.22);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(40, 58, 73, 0.98), rgba(12, 19, 28, 0.98));
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.reward-card-choice:hover {
+  transform: translateY(-10px) scale(1.04);
+  border-color: rgba(116, 232, 255, 0.82);
+  box-shadow: 0 0 28px rgba(98, 221, 255, 0.44);
+}
+
+.reward-card-choice.flying {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 1000;
+  width: 210px;
+  min-height: 260px;
+  pointer-events: none;
+  animation: reward-card-fly-to-deck 0.65s ease-in forwards;
+}
+
+.reward-card-cost {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #63dfff, #1662b4);
+  color: #06111d;
+  font-weight: 1000;
+}
+
+.reward-card-choice strong {
+  padding-left: 40px;
+  color: #f4fbff;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.reward-card-choice small {
+  color: #a9bdc9;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.reward-card-choice p {
+  color: #d5e6ee;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@keyframes reward-card-fly-to-deck {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+
+  100% {
+    opacity: 0.2;
+    transform: translate(calc(50vw - 240px), calc(-50vh + 42px)) scale(0.18) rotate(14deg);
+  }
 }
 
 .result-panel {

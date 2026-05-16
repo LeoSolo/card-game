@@ -3,6 +3,7 @@ import type { CardDefinition, CardEffect, CardInstance } from '@/game/cards/card
 import type { EquipmentModifier } from '@/game/equipment/equipmentTypes';
 import type { CombatActor, CombatEnemy, CombatState } from './combatTypes';
 import { createEnemyIntent } from './createCombat';
+import { createCombatReward } from './rewardGenerator';
 import { shuffle } from './random';
 
 const DAMAGE_STATUS_MODIFIER = 0.4;
@@ -55,7 +56,9 @@ export const calculateDamageAmount = (
   return Math.max(0, Math.floor(amount * getVulnerableMultiplier(target)));
 };
 
-export const getFirstDamageEffect = (card: CardDefinition): Extract<CardEffect, { type: 'damage' }> | undefined =>
+export const getFirstDamageEffect = (
+  card: CardDefinition,
+): Extract<CardEffect, { type: 'damage' }> | undefined =>
   card.effects.find((effect): effect is Extract<CardEffect, { type: 'damage' }> => effect.type === 'damage');
 
 const dealDamage = (
@@ -92,6 +95,11 @@ const applyBlock = (
   addLog(state, `${target.name} получает ${finalBlock} брони.`);
 };
 
+const healPlayer = (state: CombatState, amount: number): void => {
+  state.player.hp = Math.min(state.player.maxHp, state.player.hp + amount);
+  addLog(state, `Татьяна восстанавливает ${amount} здоровья.`);
+};
+
 const applyStatus = (
   state: CombatState,
   target: CombatActor,
@@ -123,6 +131,11 @@ const applyStatus = (
 const checkCombatResult = (state: CombatState): void => {
   if (getAliveEnemies(state).length === 0) {
     state.phase = 'won';
+
+    if (!state.reward) {
+      state.reward = createCombatReward(false);
+    }
+
     addLog(state, 'Победа. Все противники уничтожены.');
     return;
   }
@@ -235,6 +248,7 @@ export const playCard = (
   const card = getCardById(cardInstance.cardId);
   const needsEnemyTarget = card.target === 'enemy';
   const targetEnemy = needsEnemyTarget ? getEnemyById(state, targetEnemyId) : undefined;
+  const fallbackEnemy = targetEnemy ?? getEnemyById(state);
 
   if (needsEnemyTarget && !targetEnemy) {
     addLog(state, `Для карты "${card.name}" нужно выбрать живого противника.`);
@@ -257,7 +271,11 @@ export const playCard = (
         return;
       }
 
-      dealDamage(state, state.player, effect.target === 'player' ? state.player : targetEnemy!, effect.amount);
+      if (effect.target === 'enemy' && !fallbackEnemy) {
+        return;
+      }
+
+      dealDamage(state, state.player, effect.target === 'player' ? state.player : fallbackEnemy!, effect.amount);
       return;
     }
 
@@ -267,7 +285,11 @@ export const playCard = (
         return;
       }
 
-      applyBlock(state, effect.target === 'player' ? state.player : targetEnemy!, effect.amount, card.type);
+      if (effect.target === 'enemy' && !fallbackEnemy) {
+        return;
+      }
+
+      applyBlock(state, effect.target === 'player' ? state.player : fallbackEnemy!, effect.amount, card.type);
       return;
     }
 
@@ -282,13 +304,22 @@ export const playCard = (
       return;
     }
 
+    if (effect.type === 'heal') {
+      healPlayer(state, effect.amount);
+      return;
+    }
+
     if (effect.type === 'applyStatus') {
       if (effect.target === 'all-enemies') {
         getAliveEnemies(state).forEach((enemy) => applyStatus(state, enemy, effect));
         return;
       }
 
-      applyStatus(state, effect.target === 'player' ? state.player : targetEnemy!, effect);
+      if (effect.target === 'enemy' && !fallbackEnemy) {
+        return;
+      }
+
+      applyStatus(state, effect.target === 'player' ? state.player : fallbackEnemy!, effect);
     }
   });
 
