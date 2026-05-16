@@ -1,5 +1,6 @@
 import type { CardInstance, StatusId } from '@/game/cards/cardTypes';
 import type { EquippedItems } from '@/game/equipment/equipmentTypes';
+import type { CombatRewardState } from './rewardTypes';
 
 export type CombatActor = {
   id: string;
@@ -51,6 +52,7 @@ export type InventoryItem = {
 export type CombatState = {
   phase: CombatPhase;
   turn: number;
+  money: number;
   maxEnergy: number;
   energy: number;
   handSize: number;
@@ -63,5 +65,6 @@ export type CombatState = {
   exhaustPile: CardInstance[];
   equippedItems: EquippedItems;
   carriedItems: InventoryItem[];
+  reward: CombatRewardState | null;
   log: CombatLogItem[];
 };

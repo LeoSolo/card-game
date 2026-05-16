@@ -1,0 +1,117 @@
+/* Temporary combat UI hotfixes layered over CombatPage.vue.
+   Keep this file small: it only restores the current broken layout without
+   touching combat logic. */
+
+/* 1. Card layout: keep all text visible and prevent title/type overlap. */
+.combat-page .hand .card {
+  display: grid !important;
+  grid-template-rows: 34px 20px 52px 24px minmax(44px, 1fr) !important;
+  width: 150px !important;
+  height: 220px !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+}
+
+.combat-page .hand .card-title {
+  min-height: 0 !important;
+  max-height: 34px !important;
+  padding-left: 34px !important;
+  overflow: hidden !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  text-overflow: ellipsis !important;
+}
+
+.combat-page .hand .card small {
+  align-self: start !important;
+  justify-self: start !important;
+  width: fit-content !important;
+  max-width: calc(100% - 8px) !important;
+  padding: 3px 8px !important;
+  overflow: hidden !important;
+  border-radius: 999px !important;
+  background: rgba(238, 247, 255, 0.86) !important;
+  color: #1a2630 !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  text-overflow: ellipsis !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+.combat-page .hand .card-art {
+  min-height: 48px !important;
+  max-height: 52px !important;
+  margin: 4px 0 !important;
+}
+
+.combat-page .hand .damage-preview {
+  align-self: center !important;
+  justify-self: start !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 3px 7px !important;
+  overflow: hidden !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.combat-page .hand .card p {
+  min-height: 0 !important;
+  margin: 4px 0 0 !important;
+  overflow: hidden !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+}
+
+/* 2. Energy orb: compact text position. */
+.combat-page .energy-orb {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.combat-page .energy-orb strong,
+.combat-page .energy-orb span {
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+/* 3. Exhaust pile above discard pile. */
+.combat-page .pile-column {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.combat-page .exhaust-pile {
+  order: 1 !important;
+}
+
+.combat-page .discard-pile {
+  order: 2 !important;
+}
+
+/* 4. Debuff intent should not reveal the exact negative effect. */
+.combat-page .intent-debuff span {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+.combat-page .intent-debuff span::after {
+  content: 'Накладывает негативный эффект.' !important;
+  display: block !important;
+  color: #b8ccd8 !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+/* 5. Keep target arrow visible above cards and battlefield. */
+.combat-page .target-arrow {
+  z-index: 650 !important;
+}

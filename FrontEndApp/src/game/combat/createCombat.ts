@@ -58,6 +58,7 @@ export const createInitialCombatState = (
   return {
     phase: 'playerTurn',
     turn: 1,
+    money: 0,
     maxEnergy: 3,
     energy: 3,
     handSize: 5,
@@ -77,6 +78,7 @@ export const createInitialCombatState = (
     exhaustPile: [],
     equippedItems,
     carriedItems: createStartingInventory(),
+    reward: null,
     log: [
       {
         id: crypto.randomUUID(),

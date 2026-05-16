@@ -8,12 +8,18 @@ import {
   playCard,
   startPlayerTurn,
 } from '@/game/combat/combatEngine';
-import type { CardInstance } from '@/game/cards/cardTypes';
+import type { CardDefinition, CardInstance } from '@/game/cards/cardTypes';
 import type { CombatState } from '@/game/combat/combatTypes';
+import type { CombatRewardLootItem } from '@/game/combat/rewardTypes';
 
 export type CardWithDefinition = CardInstance & {
-  definition: ReturnType<typeof getCardById>;
+  definition: CardDefinition;
 };
+
+const createRewardCardInstance = (cardId: string): CardInstance => ({
+  cardId,
+  instanceId: `${cardId}-reward-${crypto.randomUUID()}`,
+});
 
 export const useCombatStore = defineStore('combat', () => {
   const state = ref<CombatState | null>(null);
@@ -55,6 +61,40 @@ export const useCombatStore = defineStore('combat', () => {
     endPlayerTurn(state.value);
   };
 
+  const chooseCardReward = (cardId: string): void => {
+    if (!state.value?.reward || state.value.reward.isCardRewardTaken) {
+      return;
+    }
+
+    const isOffered = state.value.reward.cardChoices.some((card) => card.id === cardId);
+
+    if (!isOffered) {
+      return;
+    }
+
+    state.value.discardPile.push(createRewardCardInstance(cardId));
+    state.value.reward.isCardRewardTaken = true;
+  };
+
+  const claimMoneyReward = (): void => {
+    if (!state.value?.reward || state.value.reward.isMoneyTaken) {
+      return;
+    }
+
+    state.value.money += state.value.reward.money;
+    state.value.reward.isMoneyTaken = true;
+  };
+
+  const claimLootReward = (): void => {
+    if (!state.value?.reward || state.value.reward.isLootTaken) {
+      return;
+    }
+
+    const lootAsInventory = state.value.reward.loot.map<CombatRewardLootItem>((item) => ({ ...item }));
+    state.value.carriedItems.push(...lootAsInventory);
+    state.value.reward.isLootTaken = true;
+  };
+
   const restartCombat = (): void => {
     startTestCombat();
   };
@@ -67,6 +107,9 @@ export const useCombatStore = defineStore('combat', () => {
     startPlayerTurn,
     playCardFromHand,
     endTurn,
+    chooseCardReward,
+    claimMoneyReward,
+    claimLootReward,
     restartCombat,
   };
 });

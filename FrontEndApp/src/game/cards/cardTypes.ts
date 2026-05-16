@@ -33,6 +33,10 @@ export type CardEffect =
       amount: number;
     }
   | {
+      type: 'heal';
+      amount: number;
+    }
+  | {
       type: 'applyStatus';
       status: StatusId;
       amount: number;
