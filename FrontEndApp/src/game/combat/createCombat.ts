@@ -47,29 +47,7 @@ const createRustyBot = (index: number): CombatEnemy => ({
   intent: createEnemyIntent(),
 });
 
-const createStartingInventory = (): InventoryItem[] => [
-  {
-    id: 'scrap-metal',
-    name: 'Металлолом',
-    kind: 'material',
-    amount: 4,
-    description: 'Обломки металла, пригодные для ремонта и торговли.',
-  },
-  {
-    id: 'small-medkit',
-    name: 'Малая аптечка',
-    kind: 'medicine',
-    amount: 1,
-    description: 'Базовый набор для обработки ран.',
-  },
-  {
-    id: 'rusty-robot-part',
-    name: 'Ржавая деталь робота',
-    kind: 'component',
-    amount: 2,
-    description: 'Простая деталь от старых автономных машин.',
-  },
-];
+const createStartingInventory = (): InventoryItem[] => [];
 
 export const createInitialCombatState = (
   equippedItems: EquippedItems = startingEquipment,
