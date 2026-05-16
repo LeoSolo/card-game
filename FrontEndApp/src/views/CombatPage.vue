@@ -1,15 +1,15 @@
 <template>
   <main v-if='combatState' class='combat-page' :class='{ aiming: isAiming }'>
-    <CombatHeader
-      :player-hp='combatState.player.hp'
-      :player-max-hp='combatState.player.maxHp'
-      :money='money'
-      :total-deck-size='totalDeckSize'
-      @go-hub='goHub'
-      @open-inventory='openInventoryModal'
-      @open-deck="openCardModal('deck')"
-      @restart='combatStore.restartCombat'
-    />
+    <header class='top-bar'>
+      <button type='button' class='hub-button' @click='goHub'>← Хаб</button>
+      <button type='button' class='inventory-button' @click='openInventoryModal'>🎒 Инвентарь</button>
+      <strong class='hero-name'>Татьяна</strong>
+      <div class='top-stat hp'>♥ {{ combatState.player.hp }}/{{ combatState.player.maxHp }}</div>
+      <div class='top-stat money'>₽ {{ money }}</div>
+      <div class='top-spacer'></div>
+      <button type='button' class='deck-size' @click="openCardModal('deck')">Колода {{ totalDeckSize }}</button>
+      <button type='button' class='settings-button' @click='combatStore.restartCombat'>↻</button>
+    </header>
 
     <section class='battlefield'>
       <svg
@@ -166,19 +166,55 @@
       </section>
     </section>
 
-    <CardPileModal
-      v-if='cardModalType'
-      :title='cardModalTitle'
-      :cards='modalCards'
-      @close='closeCardModal'
-    />
+    <section v-if='cardModalType' class='modal-backdrop' @click.self='closeCardModal'>
+      <div class='cards-modal'>
+        <button type='button' class='modal-close' @click='closeCardModal'>×</button>
+        <h2>{{ cardModalTitle }}</h2>
+        <div v-if='modalCards.length > 0' class='modal-card-grid'>
+          <article
+            v-for='card in modalCards'
+            :key='card.instanceId'
+            class='modal-card'
+            :class='`modal-card-${card.definition.type}`'
+          >
+            <span class='modal-card-cost'>{{ card.definition.cost }}</span>
+            <strong>{{ card.definition.name }}</strong>
+            <small>{{ cardTypeLabels[card.definition.type] }}</small>
+            <p>{{ card.definition.description }}</p>
+          </article>
+        </div>
+        <p v-else class='empty-modal-text'>Здесь пока нет карт.</p>
+      </div>
+    </section>
 
-    <InventoryModal
-      v-if='inventoryModalOpen'
-      :equipped-items='combatState.equippedItems'
-      :carried-items='combatState.carriedItems'
-      @close='closeInventoryModal'
-    />
+    <section v-if='inventoryModalOpen' class='modal-backdrop' @click.self='closeInventoryModal'>
+      <div class='inventory-modal'>
+        <button type='button' class='modal-close' @click='closeInventoryModal'>×</button>
+        <h2>Инвентарь Татьяны</h2>
+
+        <div class='inventory-section'>
+          <h3>Снаряжение</h3>
+          <div class='equipment-grid'>
+            <article v-for='slot in equipmentSlots' :key='slot.id' class='equipment-card'>
+              <small>{{ slot.label }}</small>
+              <strong>{{ slot.item?.name ?? 'Пусто' }}</strong>
+              <p>{{ slot.item?.description ?? 'В этот слот пока ничего не экипировано.' }}</p>
+            </article>
+          </div>
+        </div>
+
+        <div class='inventory-section'>
+          <h3>С собой</h3>
+          <div class='carried-grid'>
+            <article v-for='item in combatState.carriedItems' :key='item.id' class='carried-item'>
+              <strong>{{ item.name }} ×{{ item.amount }}</strong>
+              <small>{{ inventoryKindLabels[item.kind] }}</small>
+              <p>{{ item.description }}</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section v-if="combatState.phase !== 'playerTurn'" class='result-panel'>
       <h2>{{ resultTitle }}</h2>
@@ -191,13 +227,11 @@
 <script setup lang='ts'>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import CombatHeader from '@/components/combat/CombatHeader.vue';
-import CardPileModal from '@/components/combat/CardPileModal.vue';
-import InventoryModal from '@/components/combat/InventoryModal.vue';
 import { getFirstDamageEffect } from '@/game/combat/combatEngine';
 import { useCombatStore } from '@/stores/combat';
 import type { CardDefinition, CardInstance, CardTargetType, CardType, StatusId } from '@/game/cards/cardTypes';
-import type { EnemyIntent } from '@/game/combat/combatTypes';
+import type { EquipmentItem, EquipmentSlot } from '@/game/equipment/equipmentTypes';
+import type { EnemyIntent, InventoryItem } from '@/game/combat/combatTypes';
 
 const router = useRouter();
 const combatStore = useCombatStore();
@@ -248,6 +282,21 @@ const statusLabels: Record<StatusId, string> = {
   weak: 'Слабость',
   vulnerable: 'Уязвимость',
   reinforcedBattery: 'Усиленная батарея',
+};
+
+const inventoryKindLabels: Record<InventoryItem['kind'], string> = {
+  material: 'Материал',
+  medicine: 'Медицина',
+  component: 'Компонент',
+  loot: 'Лут',
+};
+
+const equipmentSlotLabels: Record<EquipmentSlot, string> = {
+  weapon: 'Оружие',
+  body: 'Броня',
+  pants: 'Штаны',
+  boots: 'Ботинки',
+  utility: 'Доп. оборудование',
 };
 
 const draggedCard = computed(() => {
@@ -323,6 +372,43 @@ const cardModalTitle = computed(() => {
 
   return 'Израсходованные карты';
 });
+
+const equipmentSlots = computed<Array<{ id: EquipmentSlot; label: string; item?: EquipmentItem }>>(() => {
+  if (!combatState.value) {
+    return [];
+  }
+
+  const slots: EquipmentSlot[] = ['weapon', 'body', 'pants', 'boots', 'utility'];
+
+  return slots.map((slot) => ({
+    id: slot,
+    label: equipmentSlotLabels[slot],
+    item: combatState.value?.equippedItems[slot],
+  }));
+});
+
+const arrowPath = computed(() => {
+  if (!dragState.value) {
+    return '';
+  }
+
+  const startX = dragState.value.sourceX;
+  const startY = dragState.value.sourceY;
+  const endX = dragState.value.currentX;
+  const endY = dragState.value.currentY;
+  const controlX = (startX + endX) / 2;
+  const controlY = Math.min(startY, endY) - 140;
+
+  return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+});
+
+const resultTitle = computed(() => (combatState.value?.phase === 'won' ? 'Победа' : 'Поражение'));
+
+const resultDescription = computed(() =>
+  combatState.value?.phase === 'won'
+    ? 'Все противники уничтожены. Прототип боя завершён.'
+    : 'Татьяна потеряла всё, что было с собой, и возвращается в хаб.',
+);
 
 const getHpPercent = (hp: number, maxHp: number): number => {
   if (maxHp <= 0) {
@@ -560,7 +646,7 @@ const closeInventoryModal = (): void => {
 };
 
 const goHub = (): void => {
-  router.push('/hub');
+  router.push('/');
 };
 
 const updateViewportSize = (): void => {
@@ -595,6 +681,64 @@ onBeforeUnmount(() => {
     user-select: none;
 }
 
+.top-bar {
+    position: absolute;
+    top: 18px;
+    left: 24px;
+    right: 24px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border: 1px solid rgba(126, 204, 255, 0.24);
+    border-radius: 18px;
+    background: rgba(8, 15, 22, 0.82);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+}
+
+.top-bar button {
+    border: 1px solid rgba(142, 221, 255, 0.26);
+    border-radius: 12px;
+    background: rgba(14, 35, 48, 0.82);
+    color: #d9f3ff;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.hub-button,
+.inventory-button,
+.settings-button,
+.deck-size {
+    min-height: 38px;
+    padding: 0 14px;
+}
+
+.inventory-button {
+    border-color: rgba(93, 255, 174, 0.38) !important;
+}
+
+.hero-name {
+    font-size: 22px;
+    letter-spacing: 0.04em;
+}
+
+.top-stat {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    font-weight: 900;
+}
+
+.top-stat.money {
+    color: #5dffae;
+}
+
+.top-spacer {
+    flex: 1;
+}
+
 .battlefield {
     position: absolute;
     inset: 0;
@@ -603,7 +747,7 @@ onBeforeUnmount(() => {
 .target-arrow {
     position: fixed;
     inset: 0;
-    z-index: 360;
+    z-index: 900;
     pointer-events: none;
 }
 
@@ -1154,6 +1298,113 @@ onBeforeUnmount(() => {
     font-size: 16px;
     font-weight: 1000;
     box-shadow: 0 18px 28px rgba(0, 0, 0, 0.34);
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 700;
+    display: grid;
+    place-items: center;
+    background: rgba(2, 5, 8, 0.74);
+    backdrop-filter: blur(6px);
+}
+
+.cards-modal,
+.inventory-modal {
+    position: relative;
+    width: min(1120px, calc(100vw - 72px));
+    max-height: min(760px, calc(100vh - 72px));
+    overflow: auto;
+    padding: 28px;
+    border: 1px solid rgba(130, 222, 255, 0.28);
+    border-radius: 26px;
+    background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
+    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
+}
+
+.modal-close {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: #effaff;
+    cursor: pointer;
+    font-size: 24px;
+}
+
+.modal-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
+    gap: 16px;
+}
+
+.modal-card,
+.equipment-card,
+.carried-item {
+    position: relative;
+    min-height: 154px;
+    padding: 16px;
+    border: 1px solid rgba(150, 221, 255, 0.18);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-card-cost {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #65e1ff;
+    color: #07131f;
+    font-weight: 1000;
+}
+
+.modal-card strong,
+.equipment-card strong,
+.carried-item strong {
+    display: block;
+    padding-right: 30px;
+    color: #f3fbff;
+}
+
+.modal-card small,
+.equipment-card small,
+.carried-item small {
+    color: #a9bdc9;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.modal-card p,
+.equipment-card p,
+.carried-item p {
+    color: #c9d9e1;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.empty-modal-text {
+    color: #b8c9d1;
+}
+
+.inventory-section + .inventory-section {
+    margin-top: 26px;
+}
+
+.equipment-grid,
+.carried-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
 }
 
 .result-panel {

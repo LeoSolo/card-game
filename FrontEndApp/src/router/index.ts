@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+
 import HubPage from '@views/HubPage.vue';
 import CombatPage from '@views/CombatPage.vue';
 
@@ -9,6 +10,10 @@ const router = createRouter({
       path: '/',
       name: 'hub-page',
       component: HubPage,
+    },
+    {
+      path: '/hub',
+      redirect: '/',
     },
     {
       path: '/combat',
