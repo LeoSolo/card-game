@@ -1,7 +1,7 @@
 <template>
-  <main class="hub-page">
-    <section class="hero-panel">
-      <p class="eyebrow">Подземное поселение · Хаб искателей</p>
+  <main class='hub-page'>
+    <section class='hero-panel'>
+      <p class='eyebrow'>Подземное поселение · Хаб искателей</p>
       <h1>Карточная игра: первый прототип</h1>
       <p>
         После мировой войны поверхность осталась за роботами, мутантами и теми,
@@ -9,48 +9,48 @@
         за первого персонажа — искательницу с винтовкой и щитом.
       </p>
 
-      <div class="hero-actions">
-        <button type="button" @click="startCombat">Начать тестовую вылазку</button>
+      <div class='hero-actions'>
+        <button type='button' @click='startCombat'>Начать тестовую вылазку</button>
       </div>
     </section>
 
-    <section class="hub-grid">
-      <article class="hub-card active">
+    <section class='hub-grid'>
+      <article class='hub-card active'>
         <h2>Персонаж</h2>
-        <p>Искательница со щитом и винтовкой будущего.</p>
+        <p>Искательница со энергетическим щитом и винтовкой будущего.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Торговец оружием</h2>
-        <p>Позже здесь будут уникальные винтовки для билдов через Прицел и Горение.</p>
+        <p>Позже здесь будет продаваться оружие.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Торговец бронёй</h2>
         <p>Броня и штаны будут давать защиту и сопротивление негативным эффектам.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Доп. оборудование</h2>
         <p>Побег из боя, бонус к деньгам или увеличенный лут.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Склад</h2>
         <p>Общее хранилище поселения. Пока заглушка.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Доска заданий</h2>
         <p>Задания от поселения и торговцев. Пока заглушка.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Справочник мира</h2>
         <p>Лор, встреченные противники, карты и снаряжение. Пока заглушка.</p>
       </article>
 
-      <article class="hub-card">
+      <article class='hub-card'>
         <h2>Настройки</h2>
         <p>Громкость музыки и звуков. Пока заглушка.</p>
       </article>
@@ -58,7 +58,7 @@
   </main>
 </template>
 
-<script setup lang="ts">
+<script setup lang='ts'>
 import { useRouter } from 'vue-router';
 import { useCombatStore } from '@/stores/combat';
 
@@ -71,14 +71,13 @@ const startCombat = (): void => {
 };
 </script>
 
-<style scoped lang="scss">
+<style scoped lang='scss'>
 .hub-page {
   min-height: 100vh;
   padding: 48px;
   color: #edf2f7;
-  background:
-    radial-gradient(circle at top left, rgba(78, 130, 164, 0.35), transparent 36%),
-    linear-gradient(135deg, #10131a 0%, #1d232c 100%);
+  background: radial-gradient(circle at top left, rgba(78, 130, 164, 0.35), transparent 36%),
+  linear-gradient(135deg, #10131a 0%, #1d232c 100%);
 }
 
 .hero-panel,

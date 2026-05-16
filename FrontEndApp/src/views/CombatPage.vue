@@ -151,16 +151,16 @@
         <button type='button' class='end-turn-button' @click='combatStore.endTurn'>Завершить ход</button>
 
         <div class='pile-column'>
-          <button type='button' class='pile discard-pile' @click="openCardModal('discard')">
-            <div class='pile-icon'>↻</div>
-            <strong>{{ combatState.discardPile.length }}</strong>
-            <span>Сброс</span>
-          </button>
-
           <button type='button' class='pile exhaust-pile' @click="openCardModal('exhaust')">
             <div class='pile-icon'>✕</div>
             <strong>{{ combatState.exhaustPile.length }}</strong>
             <span>Расход</span>
+          </button>
+
+          <button type='button' class='pile discard-pile' @click="openCardModal('discard')">
+            <div class='pile-icon'>↻</div>
+            <strong>{{ combatState.discardPile.length }}</strong>
+            <span>Сброс</span>
           </button>
         </div>
       </section>
@@ -456,7 +456,7 @@ const intentDescription = (intent: EnemyIntent): string => {
     return 'Укрепляется';
   }
 
-  return intent.status === 'weak' ? 'Ослабляет' : 'Раскрывает';
+  return 'Накладывает негативный эффект.';
 };
 
 const getCardIcon = (type: CardType, target: CardTargetType): string => {
@@ -951,13 +951,14 @@ onBeforeUnmount(() => {
     top: 0;
     display: grid;
     min-width: 126px;
-    gap: 2px;
-    padding: 8px 12px;
     border-radius: 14px;
     transform: translateX(-50%);
     text-align: center;
     background: rgba(7, 14, 20, 0.82);
     border: 1px solid rgba(154, 223, 255, 0.18);
+    min-height: 76px;
+    gap: 6px;
+    padding: 10px 14px;
 }
 
 .intent-card strong {
@@ -966,7 +967,8 @@ onBeforeUnmount(() => {
 
 .intent-card span {
     color: #b8ccd8;
-    font-size: 11px;
+    font-size: 12px;
+    line-height: 1.25;
 }
 
 .intent-attack {
@@ -984,7 +986,7 @@ onBeforeUnmount(() => {
 .intent-icon-row {
     position: absolute;
     left: 50%;
-    top: 64px;
+    top: 96px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -996,7 +998,7 @@ onBeforeUnmount(() => {
 .enemy-core {
     position: absolute;
     left: 50%;
-    top: 132px;
+    top: 170px;
     width: 130px;
     height: 160px;
     border-radius: 24px 24px 18px 18px;
@@ -1040,7 +1042,7 @@ onBeforeUnmount(() => {
 
 .enemy-bars {
     left: 50%;
-    top: 330px;
+    top: 372px;
     width: 230px;
     transform: translateX(-50%);
 }
@@ -1062,7 +1064,10 @@ onBeforeUnmount(() => {
 
 .energy-orb {
     display: grid;
+    grid-template-rows: auto auto;
     place-items: center;
+    align-content: center;
+    row-gap: 4px;
     width: 116px;
     height: 116px;
     border: 2px solid rgba(141, 231, 255, 0.48);
@@ -1072,12 +1077,18 @@ onBeforeUnmount(() => {
 }
 
 .energy-orb strong {
-    font-size: 28px;
+    display: block;
+    margin: 0;
+    font-size: 30px;
+    line-height: 1;
 }
 
 .energy-orb span {
-    font-size: 12px;
+    display: block;
+    margin: 0;
+    font-size: 11px;
     font-weight: 900;
+    line-height: 1;
     text-transform: uppercase;
 }
 
@@ -1136,10 +1147,11 @@ onBeforeUnmount(() => {
 .card {
     position: relative;
     display: grid;
-    grid-template-rows: 22px 24px 16px 48px auto 1fr;
-    width: 150px;
-    height: 220px;
+    grid-template-rows: 34px 20px 56px auto 1fr;
+    width: 162px;
+    height: 244px;
     padding: 13px;
+    overflow: hidden;
     border: 2px solid rgba(214, 236, 255, 0.22);
     border-radius: 16px;
     background: linear-gradient(180deg, rgba(40, 58, 73, 0.98), rgba(12, 19, 28, 0.98));
@@ -1203,35 +1215,59 @@ onBeforeUnmount(() => {
 }
 
 .card-title {
+    align-self: start;
     padding-left: 34px;
-    font-size: 14px;
-    line-height: 1.08;
+    overflow: hidden;
+    color: #f3fbff;
+    font-size: 13px;
+    line-height: 1.12;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 .card small {
-    color: #a8bfcb;
+    align-self: start;
+    justify-self: start;
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(238, 247, 255, 0.86);
+    color: #1a2630;
+    font-size: 10px;
     font-weight: 900;
+    line-height: 1;
     text-transform: uppercase;
 }
 
 .card-art {
     display: grid;
     place-items: center;
-    margin: 6px 0;
+    min-height: 50px;
+    max-height: 56px;
+    margin: 5px 0;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.06);
     color: #9feaff;
-    font-size: 26px;
+    font-size: 24px;
 }
 
 .damage-preview {
-    width: max-content;
-    padding: 4px 8px;
+    align-self: start;
+    justify-self: start;
+    max-width: 100%;
+    padding: 3px 7px;
+    overflow: hidden;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.08);
     color: #f4fbff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 1000;
+    line-height: 1.1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .damage-preview.reduced {
@@ -1243,10 +1279,12 @@ onBeforeUnmount(() => {
 }
 
 .card p {
-    margin: 6px 0 0;
+    min-height: 0;
+    margin: 5px 0 0;
+    overflow: hidden;
     color: #d5e6ee;
-    font-size: 12px;
-    line-height: 1.25;
+    font-size: 11px;
+    line-height: 1.24;
 }
 
 .end-turn-button {
@@ -1410,8 +1448,8 @@ onBeforeUnmount(() => {
     }
 
     .card {
-        width: 136px;
-        height: 208px;
+        width: 148px;
+        height: 226px;
     }
 }
 </style>
