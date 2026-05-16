@@ -1,9 +1,11 @@
 import { getCardById } from '@/game/cards/starterCards';
-import type { CardEffect, CardInstance } from '@/game/cards/cardTypes';
+import type { CardDefinition, CardEffect, CardInstance } from '@/game/cards/cardTypes';
 import type { EquipmentModifier } from '@/game/equipment/equipmentTypes';
 import type { CombatActor, CombatEnemy, CombatState } from './combatTypes';
 import { createEnemyIntent } from './createCombat';
 import { shuffle } from './random';
+
+const DAMAGE_STATUS_MODIFIER = 0.4;
 
 const addLog = (state: CombatState, text: string): void => {
   state.log.unshift({
@@ -20,7 +22,8 @@ const getModifierSum = (state: CombatState, type: EquipmentModifier['type']): nu
     .filter((modifier) => modifier.type === type)
     .reduce((total, modifier) => total + modifier.amount, 0);
 
-const getAliveEnemies = (state: CombatState): CombatEnemy[] => state.enemies.filter((enemy) => enemy.hp > 0);
+const getAliveEnemies = (state: CombatState): CombatEnemy[] =>
+  state.enemies.filter((enemy) => enemy.hp > 0);
 
 const getEnemyById = (state: CombatState, enemyId?: string): CombatEnemy | undefined => {
   if (enemyId) {
@@ -30,34 +33,62 @@ const getEnemyById = (state: CombatState, enemyId?: string): CombatEnemy | undef
   return getAliveEnemies(state)[0];
 };
 
-const getWeakMultiplier = (actor: CombatActor): number => ((actor.statuses.weak ?? 0) > 0 ? 0.7 : 1);
+export const getWeakMultiplier = (actor: CombatActor): number =>
+  (actor.statuses.weak ?? 0) > 0 ? 1 - DAMAGE_STATUS_MODIFIER : 1;
 
-const getVulnerableMultiplier = (actor: CombatActor): number => ((actor.statuses.vulnerable ?? 0) > 0 ? 1.3 : 1);
+export const getVulnerableMultiplier = (actor: CombatActor): number =>
+  (actor.statuses.vulnerable ?? 0) > 0 ? 1 + DAMAGE_STATUS_MODIFIER : 1;
 
-const dealDamage = (state: CombatState, source: CombatActor, target: CombatActor, baseAmount: number): void => {
+export const calculateDamageAmount = (
+  state: CombatState,
+  source: CombatActor,
+  target: CombatActor,
+  baseAmount: number,
+): number => {
   let amount = Math.max(0, Math.floor(baseAmount * getWeakMultiplier(source)));
 
   if ((target.statuses.aim ?? 0) > 0) {
     amount += target.statuses.aim ?? 0;
     amount += getModifierSum(state, 'damageAgainstAimedBonus');
+  }
+
+  return Math.max(0, Math.floor(amount * getVulnerableMultiplier(target)));
+};
+
+export const getFirstDamageEffect = (card: CardDefinition): Extract<CardEffect, { type: 'damage' }> | undefined =>
+  card.effects.find((effect): effect is Extract<CardEffect, { type: 'damage' }> => effect.type === 'damage');
+
+const dealDamage = (
+  state: CombatState,
+  source: CombatActor,
+  target: CombatActor,
+  baseAmount: number,
+): void => {
+  const amount = calculateDamageAmount(state, source, target, baseAmount);
+
+  if ((target.statuses.aim ?? 0) > 0) {
     target.statuses.aim = Math.max(0, (target.statuses.aim ?? 0) - 1);
   }
 
-  amount = Math.max(0, Math.floor(amount * getVulnerableMultiplier(target)));
-
   const blocked = Math.min(target.block, amount);
   target.block -= blocked;
+
   const hpDamage = amount - blocked;
   target.hp = Math.max(0, target.hp - hpDamage);
 
   addLog(state, `${target.name} получает ${hpDamage} урона${blocked > 0 ? `, ${blocked} заблокировано` : ''}.`);
 };
 
-const applyBlock = (state: CombatState, target: CombatActor, amount: number, cardType: string): void => {
+const applyBlock = (
+  state: CombatState,
+  target: CombatActor,
+  amount: number,
+  cardType: string,
+): void => {
   const bonus = cardType === 'skill' ? getModifierSum(state, 'blockFromSkillsBonus') : 0;
   const finalBlock = amount + bonus;
-  target.block += finalBlock;
 
+  target.block += finalBlock;
   addLog(state, `${target.name} получает ${finalBlock} брони.`);
 };
 
@@ -78,7 +109,7 @@ const applyStatus = (
 
   target.statuses[effect.status] = (target.statuses[effect.status] ?? 0) + amount;
 
-  const statusNames: Record<string, string> = {
+  const statusNames: Record<NonNullable<typeof effect.status>, string> = {
     aim: 'Прицел',
     burn: 'Горение',
     weak: 'Слабость',
@@ -172,7 +203,11 @@ export const startPlayerTurn = (state: CombatState): void => {
   addLog(state, `Ход ${state.turn}. Энергия восстановлена.`);
 };
 
-const movePlayedCard = (state: CombatState, cardInstance: CardInstance, shouldExhaust: boolean): void => {
+const movePlayedCard = (
+  state: CombatState,
+  cardInstance: CardInstance,
+  shouldExhaust: boolean,
+): void => {
   if (shouldExhaust) {
     state.exhaustPile.push(cardInstance);
     return;
@@ -181,7 +216,11 @@ const movePlayedCard = (state: CombatState, cardInstance: CardInstance, shouldEx
   state.discardPile.push(cardInstance);
 };
 
-export const playCard = (state: CombatState, cardInstanceId: string, targetEnemyId?: string): void => {
+export const playCard = (
+  state: CombatState,
+  cardInstanceId: string,
+  targetEnemyId?: string,
+): void => {
   if (state.phase !== 'playerTurn') {
     return;
   }
@@ -209,7 +248,6 @@ export const playCard = (state: CombatState, cardInstanceId: string, targetEnemy
 
   state.energy -= card.cost;
   state.hand.splice(handIndex, 1);
-
   addLog(state, `Сыграна карта "${card.name}".`);
 
   card.effects.forEach((effect) => {
@@ -269,6 +307,7 @@ const performEnemyIntent = (state: CombatState, enemy: CombatEnemy): void => {
     for (let hit = 0; hit < intent.hits; hit += 1) {
       dealDamage(state, enemy, state.player, intent.damage);
     }
+
     return;
   }
 
@@ -297,6 +336,7 @@ const enemyTurn = (state: CombatState): void => {
     applyEndOfTurnStatuses(state, enemy);
     reduceTemporaryStatuses(enemy);
   });
+
   checkCombatResult(state);
 
   if (state.phase === 'won' || state.phase === 'lost') {
@@ -323,9 +363,11 @@ export const endPlayerTurn = (state: CombatState): void => {
 
   discardHand(state);
   resetEnemyBlockAfterPlayerTurn(state);
+
   state.enemies.forEach((enemy) => {
     applyEndOfTurnStatuses(state, enemy);
   });
+
   checkCombatResult(state);
 
   if (state.phase === 'won' || state.phase === 'lost') {

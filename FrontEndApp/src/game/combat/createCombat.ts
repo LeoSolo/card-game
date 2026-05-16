@@ -2,7 +2,7 @@ import { createStarterDeckCardIds } from '@/game/cards/starterCards';
 import type { CardInstance } from '@/game/cards/cardTypes';
 import { startingEquipment } from '@/game/equipment/startingEquipment';
 import type { EquippedItems } from '@/game/equipment/equipmentTypes';
-import type { CombatEnemy, CombatState, EnemyIntent } from './combatTypes';
+import type { CombatEnemy, CombatState, EnemyIntent, InventoryItem } from './combatTypes';
 import { shuffle } from './random';
 
 const createCardInstances = (cardIds: string[]): CardInstance[] =>
@@ -16,6 +16,7 @@ const enemyIntents: EnemyIntent[] = [
   { type: 'attack', damage: 4, hits: 2, label: 'Атака' },
   { type: 'block', block: 8, label: 'Защита' },
   { type: 'debuff', status: 'weak', amount: 1, label: 'Дебафф' },
+  { type: 'debuff', status: 'vulnerable', amount: 1, label: 'Дебафф' },
 ];
 
 export const createEnemyIntent = (previousIntent?: EnemyIntent): EnemyIntent => {
@@ -30,6 +31,7 @@ export const createEnemyIntent = (previousIntent?: EnemyIntent): EnemyIntent => 
 
     return intent.type !== previousIntent.type;
   });
+
   const intent = availableIntents[Math.floor(Math.random() * availableIntents.length)];
 
   return { ...intent };
@@ -45,6 +47,30 @@ const createRustyBot = (index: number): CombatEnemy => ({
   intent: createEnemyIntent(),
 });
 
+const createStartingInventory = (): InventoryItem[] => [
+  {
+    id: 'scrap-metal',
+    name: 'Металлолом',
+    kind: 'material',
+    amount: 4,
+    description: 'Обломки металла, пригодные для ремонта и торговли.',
+  },
+  {
+    id: 'small-medkit',
+    name: 'Малая аптечка',
+    kind: 'medicine',
+    amount: 1,
+    description: 'Базовый набор для обработки ран.',
+  },
+  {
+    id: 'rusty-robot-part',
+    name: 'Ржавая деталь робота',
+    kind: 'component',
+    amount: 2,
+    description: 'Простая деталь от старых автономных машин.',
+  },
+];
+
 export const createInitialCombatState = (
   equippedItems: EquippedItems = startingEquipment,
 ): CombatState => {
@@ -59,7 +85,7 @@ export const createInitialCombatState = (
     handSize: 5,
     maxHandSize: 10,
     player: {
-      id: 'shield-rifle-girl',
+      id: 'tatiana',
       name: 'Татьяна',
       hp: 70,
       maxHp: 70,
@@ -72,6 +98,7 @@ export const createInitialCombatState = (
     discardPile: [],
     exhaustPile: [],
     equippedItems,
+    carriedItems: createStartingInventory(),
     log: [
       {
         id: crypto.randomUUID(),
