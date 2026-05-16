@@ -40,6 +40,14 @@ export type CombatLogItem = {
   text: string;
 };
 
+export type InventoryItem = {
+  id: string;
+  name: string;
+  kind: 'material' | 'medicine' | 'component' | 'loot';
+  amount: number;
+  description: string;
+};
+
 export type CombatState = {
   phase: CombatPhase;
   turn: number;
@@ -54,5 +62,6 @@ export type CombatState = {
   discardPile: CardInstance[];
   exhaustPile: CardInstance[];
   equippedItems: EquippedItems;
+  carriedItems: InventoryItem[];
   log: CombatLogItem[];
 };

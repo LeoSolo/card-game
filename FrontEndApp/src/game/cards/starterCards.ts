@@ -8,7 +8,7 @@ export const starterCards: CardDefinition[] = [
     target: 'enemy',
     rarity: 'starter',
     cost: 1,
-    description: '6 урона.',
+    description: 'Наносит урон выбранному врагу.',
     effects: [
       {
         type: 'damage',
@@ -24,7 +24,7 @@ export const starterCards: CardDefinition[] = [
     target: 'self',
     rarity: 'starter',
     cost: 1,
-    description: '5 брони.',
+    description: 'Даёт 5 брони.',
     effects: [
       {
         type: 'block',
@@ -56,7 +56,7 @@ export const starterCards: CardDefinition[] = [
     target: 'self',
     rarity: 'starter',
     cost: 1,
-    description: '5 брони. Возьмите 2 карты.',
+    description: 'Даёт 5 брони. Возьмите 2 карты.',
     effects: [
       {
         type: 'block',
@@ -79,7 +79,7 @@ export const commonCards: CardDefinition[] = [
     target: 'enemy',
     rarity: 'common',
     cost: 1,
-    description: 'Наносит 5 урона. Накладывает 2 Прицела.',
+    description: 'Наносит урон и накладывает 2 Прицела.',
     tags: ['aim'],
     effects: [
       {
@@ -102,7 +102,7 @@ export const commonCards: CardDefinition[] = [
     target: 'enemy',
     rarity: 'common',
     cost: 1,
-    description: 'Наносит 4 урона. Накладывает 3 Горения.',
+    description: 'Наносит урон и накладывает 3 Горения.',
     tags: ['burn'],
     effects: [
       {
@@ -125,7 +125,7 @@ export const commonCards: CardDefinition[] = [
     target: 'all-enemies',
     rarity: 'common',
     cost: 2,
-    description: '4 урона всем врагам.',
+    description: 'Наносит урон всем врагам.',
     effects: [
       {
         type: 'damage',
@@ -158,7 +158,7 @@ export const commonCards: CardDefinition[] = [
     rarity: 'uncommon',
     cost: 1,
     exhaust: true,
-    description: 'До конца боя в конце хода сохраняется 50% брони.',
+    description: 'До конца боя сохраняет 50% брони после хода врагов.',
     effects: [
       {
         type: 'applyStatus',

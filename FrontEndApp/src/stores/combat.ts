@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { defineStore } from 'pinia';
 import { getCardById } from '@/game/cards/starterCards';
 import { createInitialCombatState } from '@/game/combat/createCombat';
 import {
@@ -8,17 +8,28 @@ import {
   playCard,
   startPlayerTurn,
 } from '@/game/combat/combatEngine';
+import type { CardInstance } from '@/game/cards/cardTypes';
 import type { CombatState } from '@/game/combat/combatTypes';
+
+export type CardWithDefinition = CardInstance & {
+  definition: ReturnType<typeof getCardById>;
+};
 
 export const useCombatStore = defineStore('combat', () => {
   const state = ref<CombatState | null>(null);
 
-  const handCards = computed(() =>
+  const handCards = computed<CardWithDefinition[]>(() =>
     (state.value?.hand ?? []).map((cardInstance) => ({
       ...cardInstance,
       definition: getCardById(cardInstance.cardId),
     })),
   );
+
+  const getCardsWithDefinitions = (cards: CardInstance[]): CardWithDefinition[] =>
+    cards.map((cardInstance) => ({
+      ...cardInstance,
+      definition: getCardById(cardInstance.cardId),
+    }));
 
   const startTestCombat = (): void => {
     state.value = createInitialCombatState();
@@ -51,6 +62,7 @@ export const useCombatStore = defineStore('combat', () => {
   return {
     state,
     handCards,
+    getCardsWithDefinitions,
     startTestCombat,
     startPlayerTurn,
     playCardFromHand,
