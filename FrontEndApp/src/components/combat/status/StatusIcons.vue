@@ -1,25 +1,42 @@
 <template>
-  <div class='status-icons'>
+  <div class="status-icons">
     <span
-      v-for='status in visibleStatuses'
-      :key='status.id'
-      class='status-icon'
-      :title='status.tooltip'
+      v-for="status in visibleStatuses"
+      :key="status.id"
+      class="status-icon"
+      @mouseenter="showTooltip(status.tooltip, $event)"
+      @mousemove="moveTooltip($event)"
+      @mouseleave="hideTooltip"
     >
       <strong>{{ status.icon }}</strong>
       <small>{{ status.value }}</small>
     </span>
+
+    <GameTooltip
+      :visible="tooltip.visible"
+      :text="tooltip.text"
+      :x="tooltip.x"
+      :y="tooltip.y"
+    />
   </div>
 </template>
 
-<script setup lang='ts'>
-import { computed } from 'vue';
+<script setup lang="ts">
+import { computed, reactive } from 'vue';
+import GameTooltip from '@/components/ui/GameTooltip.vue';
 import type { StatusId } from '@/game/cards/cardTypes';
 import { formatStatusTooltip, statusIcons } from '@/game/combat/combatUiTypes';
 
 const props = defineProps<{
   statuses: Partial<Record<StatusId, number>>;
 }>();
+
+const tooltip = reactive({
+  visible: false,
+  text: '',
+  x: 0,
+  y: 0,
+});
 
 const visibleStatuses = computed(() =>
   Object.entries(props.statuses)
@@ -36,6 +53,23 @@ const visibleStatuses = computed(() =>
       };
     }),
 );
+
+const showTooltip = (text: string, event: MouseEvent): void => {
+  tooltip.visible = true;
+  tooltip.text = text;
+  tooltip.x = event.clientX;
+  tooltip.y = event.clientY;
+};
+
+const moveTooltip = (event: MouseEvent): void => {
+  tooltip.x = event.clientX;
+  tooltip.y = event.clientY;
+};
+
+const hideTooltip = (): void => {
+  tooltip.visible = false;
+  tooltip.text = '';
+};
 </script>
 
 <style scoped>

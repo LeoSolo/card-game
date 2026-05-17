@@ -12,13 +12,20 @@
       v-if='enemy.hp > 0'
       class='intent-card'
       :class='`intent-${enemy.intent.type}`'
-      :title='getIntentDescription(enemy.intent)'
-    >
+>
       <template v-if="enemy.intent.type === 'attack'">
         <strong>{{ getIntentTitle(enemy.intent) }}</strong>
         <span>{{ getIntentDescription(enemy.intent) }}</span>
       </template>
-      <span v-else class='intent-only-icon'>{{ getIntentIcon(enemy.intent.type) }}</span>
+      <span
+        v-else
+        class='intent-only-icon'
+        @mouseenter='showTooltip(getIntentDescription(enemy.intent), $event)'
+        @mousemove='moveTooltip($event)'
+        @mouseleave='hideTooltip'
+      >
+        {{ getIntentIcon(enemy.intent.type) }}
+      </span>
     </div>
 
     <div v-if="enemy.hp > 0 && enemy.intent.type === 'attack'" class='intent-icon-row'>
@@ -39,12 +46,19 @@
 
       <StatusIcons :statuses='enemy.statuses' />
     </div>
+    <GameTooltip
+      :visible='tooltip.visible'
+      :text='tooltip.text'
+      :x='tooltip.x'
+      :y='tooltip.y'
+    />
   </article>
 </template>
 
 <script setup lang='ts'>
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import StatusIcons from '@/components/combat/status/StatusIcons.vue';
+import GameTooltip from '@/components/ui/GameTooltip.vue';
 import type { CombatEnemy } from '@/game/combat/combatTypes';
 import { getIntentDescription, getIntentIcon, getIntentTitle } from '@/game/combat/combatUiTypes';
 
@@ -53,6 +67,31 @@ const props = defineProps<{
   isAiming: boolean;
   hoveredEnemyId: string | null;
 }>();
+
+const tooltip = reactive({
+  visible: false,
+  text: '',
+  x: 0,
+  y: 0,
+});
+
+const showTooltip = (text: string, event: MouseEvent): void => {
+  tooltip.visible = true;
+  tooltip.text = text;
+  tooltip.x = event.clientX;
+  tooltip.y = event.clientY;
+};
+
+const moveTooltip = (event: MouseEvent): void => {
+  tooltip.x = event.clientX;
+  tooltip.y = event.clientY;
+};
+
+const hideTooltip = (): void => {
+  tooltip.visible = false;
+  tooltip.text = '';
+};
+
 
 const hpPercent = computed(() => {
   if (props.enemy.maxHp <= 0) {
