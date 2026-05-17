@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+
 import { getCardById } from '@/game/cards/starterCards';
 import { createInitialCombatState } from '@/game/combat/createCombat';
 import {
@@ -8,9 +9,9 @@ import {
   playCard,
   startPlayerTurn,
 } from '@/game/combat/combatEngine';
+import { createCombatReward } from '@/game/combat/rewardGenerator';
 import type { CardDefinition, CardInstance } from '@/game/cards/cardTypes';
 import type { CombatState } from '@/game/combat/combatTypes';
-import type { CombatRewardLootItem } from '@/game/combat/rewardTypes';
 
 export type CardWithDefinition = CardInstance & {
   definition: CardDefinition;
@@ -90,9 +91,26 @@ export const useCombatStore = defineStore('combat', () => {
       return;
     }
 
-    const lootAsInventory = state.value.reward.loot.map<CombatRewardLootItem>((item) => ({ ...item }));
+    const lootAsInventory = state.value.reward.loot.map((item) => ({ ...item }));
     state.value.carriedItems.push(...lootAsInventory);
     state.value.reward.isLootTaken = true;
+  };
+
+  const winCombatForTests = (): void => {
+    if (!state.value || state.value.phase === 'won') {
+      return;
+    }
+
+    state.value.enemies.forEach((enemy) => {
+      enemy.hp = 0;
+      enemy.block = 0;
+    });
+
+    state.value.phase = 'won';
+
+    if (!state.value.reward) {
+      state.value.reward = createCombatReward(false);
+    }
   };
 
   const restartCombat = (): void => {
@@ -110,6 +128,7 @@ export const useCombatStore = defineStore('combat', () => {
     chooseCardReward,
     claimMoneyReward,
     claimLootReward,
+    winCombatForTests,
     restartCombat,
   };
 });

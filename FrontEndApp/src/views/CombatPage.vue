@@ -9,6 +9,7 @@
       <div class='top-spacer'></div>
       <button type='button' class='deck-size' @click="openCardModal('deck')">Колода {{ totalDeckSize }}</button>
       <button type='button' class='settings-button' @click='combatStore.restartCombat'>↻</button>
+      <button type='button' class='test-win-button' @click='combatStore.winCombatForTests'>Выиграть бой</button>
     </header>
 
     <section class='battlefield'>
@@ -58,7 +59,12 @@
           </div>
 
           <div class='statuses'>
-            <span v-for='status in playerStatuses' :key='status'>{{ status }}</span>
+            <span
+              v-for='status in playerStatuses'
+              :key='status'
+              class='status-icon'
+              :title='getStatusTooltip(status)'
+            >{{ getStatusIcon(status) }}</span>
           </div>
         </div>
       </article>
@@ -75,13 +81,21 @@
           }'
           :data-enemy-id='enemy.id'
         >
-          <div v-if='enemy.hp > 0' class='intent-card' :class='`intent-${enemy.intent.type}`'>
-            <strong>{{ intentTitle(enemy.intent) }}</strong>
-            <span>{{ intentDescription(enemy.intent) }}</span>
+          <div
+            v-if='enemy.hp > 0'
+            class='intent-card'
+            :class='`intent-${enemy.intent.type}`'
+            :title='intentDescription(enemy.intent)'
+          >
+            <template v-if="enemy.intent.type === 'attack'">
+              <strong>{{ intentTitle(enemy.intent) }}</strong>
+              <span>{{ intentDescription(enemy.intent) }}</span>
+            </template>
+            <span v-else class='intent-only-icon'>{{ getIntentIcon(enemy.intent.type) }}</span>
           </div>
 
-          <div v-if='enemy.hp > 0' class='intent-icon-row'>
-            <strong v-if="enemy.intent.type === 'attack'">{{ enemy.intent.damage * enemy.intent.hits }}</strong>
+          <div v-if="enemy.hp > 0 && enemy.intent.type === 'attack'" class='intent-icon-row'>
+            <strong>{{ enemy.intent.damage * enemy.intent.hits }}</strong>
             <span>{{ getIntentIcon(enemy.intent.type) }}</span>
           </div>
 
@@ -97,7 +111,12 @@
             </div>
 
             <div class='statuses'>
-              <span v-for='status in formatStatuses(enemy.statuses)' :key='status'>{{ status }}</span>
+              <span
+                v-for='status in formatStatuses(enemy.statuses)'
+                :key='status'
+                class='status-icon'
+                :title='getStatusTooltip(status)'
+              >{{ getStatusIcon(status) }}</span>
             </div>
           </div>
         </article>
@@ -268,7 +287,8 @@
       </div>
     </section>
 
-    <section v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop'
+    <section
+v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop'
              @click.self='closeCardRewardModal'>
       <div class='card-reward-modal'>
         <button type='button' class='modal-close' @click='closeCardRewardModal'>×</button>
@@ -542,13 +562,39 @@ const formatStatuses = (statuses: Partial<Record<StatusId, number>>): string[] =
     .filter(([, value]) => (value ?? 0) > 0)
     .map(([status, value]) => `${statusLabels[status as StatusId]} ${value}`);
 
+const getStatusIcon = (statusText: string): string => {
+  if (statusText.startsWith(statusLabels.aim)) {
+    return '◎';
+  }
+
+  if (statusText.startsWith(statusLabels.burn)) {
+    return '🔥';
+  }
+
+  if (statusText.startsWith(statusLabels.weak)) {
+    return '↓';
+  }
+
+  if (statusText.startsWith(statusLabels.vulnerable)) {
+    return '◇';
+  }
+
+  if (statusText.startsWith(statusLabels.reinforcedBattery)) {
+    return '▣';
+  }
+
+  return '•';
+};
+
+const getStatusTooltip = (statusText: string): string => statusText;
+
 const getIntentIcon = (intentType: EnemyIntent['type']): string => {
   if (intentType === 'attack') {
     return '⚔';
   }
 
   if (intentType === 'block') {
-    return '◆';
+    return '🛡';
   }
 
   return '☣';
@@ -572,7 +618,7 @@ const intentDescription = (intent: EnemyIntent): string => {
   }
 
   if (intent.type === 'block') {
-    return 'Укрепляется';
+    return 'Накладывает защиту.';
   }
 
   return 'Накладывает негативный эффект.';
@@ -807,9 +853,12 @@ const selectRewardCard = (cardId: string): void => {
 
   window.setTimeout(() => {
     combatStore.chooseCardReward(cardId);
-    flyingRewardCardId.value = null;
-    cardRewardModalOpen.value = false;
-    continueIfRewardsFinished();
+
+    window.setTimeout(() => {
+      flyingRewardCardId.value = null;
+      cardRewardModalOpen.value = false;
+      continueIfRewardsFinished();
+    }, 300);
   }, 650);
 };
 
@@ -878,13 +927,19 @@ onBeforeUnmount(() => {
 .hub-button,
 .inventory-button,
 .settings-button,
-.deck-size {
+.deck-size,
+.test-win-button {
     min-height: 38px;
     padding: 0 14px;
 }
 
 .inventory-button {
     border-color: rgba(93, 255, 174, 0.38) !important;
+}
+
+.test-win-button {
+    border-color: rgba(255, 198, 93, 0.45);
+    color: #ffe2a4;
 }
 
 .hero-name {
@@ -1071,12 +1126,17 @@ onBeforeUnmount(() => {
 }
 
 .statuses span {
-    padding: 3px 7px;
-    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(123, 214, 255, 0.32);
+    border-radius: 50%;
     background: rgba(123, 214, 255, 0.15);
     color: #bfefff;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: help;
 }
 
 .enemies-area {
@@ -1138,6 +1198,23 @@ onBeforeUnmount(() => {
     font-size: 12px;
     line-height: 1.25;
 }
+
+.intent-block,
+.intent-debuff {
+    display: grid;
+    place-items: center;
+    min-width: 56px;
+    min-height: 56px;
+    padding: 0;
+    cursor: help;
+}
+
+.intent-only-icon {
+    color: inherit;
+    font-size: 24px;
+    line-height: 1;
+}
+
 
 .intent-attack {
     color: #ffaca2;
