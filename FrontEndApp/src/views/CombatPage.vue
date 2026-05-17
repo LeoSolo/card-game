@@ -1,16 +1,16 @@
 <template>
   <main v-if='combatState' class='combat-page' :class='{ aiming: isAiming }'>
-    <header class='top-bar'>
-      <button type='button' class='hub-button' @click='goHub'>← Хаб</button>
-      <button type='button' class='inventory-button' @click='openInventoryModal'>🎒 Инвентарь</button>
-      <strong class='hero-name'>Татьяна</strong>
-      <div class='top-stat hp'>♥ {{ combatState.player.hp }}/{{ combatState.player.maxHp }}</div>
-      <div class='top-stat money'>₽ {{ money }}</div>
-      <div class='top-spacer'></div>
-      <button type='button' class='deck-size' @click="openCardModal('deck')">Колода {{ totalDeckSize }}</button>
-      <button type='button' class='settings-button' @click='combatStore.restartCombat'>↻</button>
-      <button type='button' class='test-win-button' @click='combatStore.winCombatForTests'>Выиграть бой</button>
-    </header>
+    <CombatHeader
+      :player-hp='combatState.player.hp'
+      :player-max-hp='combatState.player.maxHp'
+      :money='money'
+      :total-deck-size='totalDeckSize'
+      @go-hub='goHub'
+      @open-inventory='openInventoryModal'
+      @open-deck="openCardModal('deck')"
+      @restart-combat='combatStore.restartCombat'
+      @win-combat-for-tests='combatStore.winCombatForTests'
+    />
 
     <section class='battlefield'>
       <svg
@@ -58,68 +58,18 @@
             </div>
           </div>
 
-          <div class='statuses'>
-            <span
-              v-for='status in playerStatuses'
-              :key='status'
-              class='status-icon'
-              :title='getStatusTooltip(status)'
-            >{{ getStatusIcon(status) }}</span>
-          </div>
+          <StatusIcons :statuses='combatState.player.statuses' />
         </div>
       </article>
 
       <section class='enemies-area'>
-        <article
+        <EnemyUnit
           v-for='enemy in combatState.enemies'
           :key='enemy.id'
-          class='enemy-unit'
-          :class='{
-            defeated: enemy.hp <= 0,
-            targetable: isAiming && enemy.hp > 0,
-            hovered: isAiming && hoveredEnemyId === enemy.id,
-          }'
-          :data-enemy-id='enemy.id'
-        >
-          <div
-            v-if='enemy.hp > 0'
-            class='intent-card'
-            :class='`intent-${enemy.intent.type}`'
-            :title='intentDescription(enemy.intent)'
-          >
-            <template v-if="enemy.intent.type === 'attack'">
-              <strong>{{ intentTitle(enemy.intent) }}</strong>
-              <span>{{ intentDescription(enemy.intent) }}</span>
-            </template>
-            <span v-else class='intent-only-icon'>{{ getIntentIcon(enemy.intent.type) }}</span>
-          </div>
-
-          <div v-if="enemy.hp > 0 && enemy.intent.type === 'attack'" class='intent-icon-row'>
-            <strong>{{ enemy.intent.damage * enemy.intent.hits }}</strong>
-            <span>{{ getIntentIcon(enemy.intent.type) }}</span>
-          </div>
-
-          <div class='enemy-core' :class='`enemy-${enemy.id}`'></div>
-
-          <div v-if='enemy.hp > 0' class='actor-bars enemy-bars'>
-            <div class='hp-row'>
-              <span v-if='enemy.block > 0' class='block-chip'>{{ enemy.block }}</span>
-              <div class='hp-bar' :class='{ shielded: enemy.block > 0 }'>
-                <span :style="{ width: getHpPercent(enemy.hp, enemy.maxHp) + '%' }"></span>
-                <strong>{{ enemy.hp }}/{{ enemy.maxHp }}</strong>
-              </div>
-            </div>
-
-            <div class='statuses'>
-              <span
-                v-for='status in formatStatuses(enemy.statuses)'
-                :key='status'
-                class='status-icon'
-                :title='getStatusTooltip(status)'
-              >{{ getStatusIcon(status) }}</span>
-            </div>
-          </div>
-        </article>
+          :enemy='enemy'
+          :is-aiming='isAiming'
+          :hovered-enemy-id='hoveredEnemyId'
+        />
       </section>
 
       <section class='bottom-hud'>
@@ -185,133 +135,38 @@
       </section>
     </section>
 
-    <section v-if='cardModalType' class='modal-backdrop' @click.self='closeCardModal'>
-      <div class='cards-modal'>
-        <button type='button' class='modal-close' @click='closeCardModal'>×</button>
-        <h2>{{ cardModalTitle }}</h2>
-        <div v-if='modalCards.length > 0' class='modal-card-grid'>
-          <article
-            v-for='card in modalCards'
-            :key='card.instanceId'
-            class='modal-card'
-            :class='`modal-card-${card.definition.type}`'
-          >
-            <span class='modal-card-cost'>{{ card.definition.cost }}</span>
-            <strong>{{ card.definition.name }}</strong>
-            <small>{{ cardTypeLabels[card.definition.type] }}</small>
-            <p>{{ card.definition.description }}</p>
-          </article>
-        </div>
-        <p v-else class='empty-modal-text'>Здесь пока нет карт.</p>
-      </div>
-    </section>
+    <CardPileModal
+      v-if='cardModalType'
+      :title='cardModalTitle'
+      :cards='modalCards'
+      @close='closeCardModal'
+    />
 
-    <section v-if='inventoryModalOpen' class='modal-backdrop' @click.self='closeInventoryModal'>
-      <div class='inventory-modal'>
-        <button type='button' class='modal-close' @click='closeInventoryModal'>×</button>
-        <h2>Инвентарь Татьяны</h2>
+    <InventoryModal
+      v-if='inventoryModalOpen'
+      :equipped-items='combatState.equippedItems'
+      :carried-items='combatState.carriedItems'
+      @close='closeInventoryModal'
+    />
 
-        <div class='inventory-section'>
-          <h3>Снаряжение</h3>
-          <div class='equipment-grid'>
-            <article v-for='slot in equipmentSlots' :key='slot.id' class='equipment-card'>
-              <small>{{ slot.label }}</small>
-              <strong>{{ slot.item?.name ?? 'Пусто' }}</strong>
-              <p>{{ slot.item?.description ?? 'В этот слот пока ничего не экипировано.' }}</p>
-            </article>
-          </div>
-        </div>
+    <RewardModal
+      v-if='showRewardModal && rewardState'
+      :has-card-reward='!rewardState.isCardRewardTaken'
+      :money='rewardState.isMoneyTaken ? null : rewardState.money'
+      :loot='visibleRewardLoot'
+      @open-card-reward='openCardRewardModal'
+      @claim-money='claimMoneyReward'
+      @claim-loot='claimLootReward'
+      @continue='continueRaid'
+    />
 
-        <div class='inventory-section'>
-          <h3>С собой</h3>
-          <div class='carried-grid'>
-            <article v-for='item in combatState.carriedItems' :key='item.id' class='carried-item'>
-              <strong>{{ item.name }} ×{{ item.amount }}</strong>
-              <small>{{ inventoryKindLabels[item.kind] }}</small>
-              <p>{{ item.description }}</p>
-            </article>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if='showRewardModal' class='modal-backdrop reward-backdrop'>
-      <div class='reward-modal'>
-        <h2>Награда за бой</h2>
-        <p class='reward-subtitle'>Забери награды перед возвращением на маршрут.</p>
-
-        <div class='reward-list'>
-          <button
-            v-if='rewardState && !rewardState.isCardRewardTaken'
-            type='button'
-            class='reward-row card-reward-row'
-            @click='openCardRewardModal'
-          >
-            <span class='reward-row-icon'>▧</span>
-            <span class='reward-row-content'>
-              <strong>Выбрать карту</strong>
-              <small>Добавить одну из трёх карт в колоду</small>
-            </span>
-          </button>
-
-          <button
-            v-if='rewardState && !rewardState.isMoneyTaken'
-            type='button'
-            class='reward-row money-reward-row'
-            @click='claimMoneyReward'
-          >
-            <span class='reward-row-icon'>₽</span>
-            <span class='reward-row-content'>
-              <strong>{{ rewardState.money }} денег</strong>
-              <small>Забрать в инвентарь вылазки</small>
-            </span>
-          </button>
-
-          <button
-            v-for='item in visibleRewardLoot'
-            :key='item.id'
-            type='button'
-            class='reward-row loot-reward-row'
-            @click='claimLootReward'
-          >
-            <span class='reward-row-icon'>✦</span>
-            <span class='reward-row-content'>
-              <strong>{{ item.name }} ×{{ item.amount }}</strong>
-              <small>{{ lootRarityLabels[item.rarity] }}</small>
-              <span class='reward-loot-tooltip'>{{ item.description }}</span>
-            </span>
-          </button>
-        </div>
-
-        <button type='button' class='reward-continue-button' @click='continueRaid'>Продолжить вылазку</button>
-      </div>
-    </section>
-
-    <section
-v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop'
-             @click.self='closeCardRewardModal'>
-      <div class='card-reward-modal'>
-        <button type='button' class='modal-close' @click='closeCardRewardModal'>×</button>
-        <h2>Выберите карту</h2>
-        <div class='reward-card-choice-grid'>
-          <article
-            v-for='card in rewardState.cardChoices'
-            :key='card.id'
-            class='reward-card-choice'
-            :class='[
-              `reward-card-${card.type}`,
-              { flying: flyingRewardCardId === card.id },
-            ]'
-            @click='selectRewardCard(card.id)'
-          >
-            <span class='reward-card-cost'>{{ card.cost }}</span>
-            <strong>{{ card.name }}</strong>
-            <small>{{ cardTypeLabels[card.type] }} · {{ rarityLabels[card.rarity] }}</small>
-            <p>{{ card.description }}</p>
-          </article>
-        </div>
-      </div>
-    </section>
+    <CardRewardModal
+      v-if='cardRewardModalOpen && rewardState'
+      :cards='rewardState.cardChoices'
+      :flying-card-id='flyingRewardCardId'
+      @close='closeCardRewardModal'
+      @select-card='selectRewardCard'
+    />
 
     <section v-if="combatState.phase === 'lost'" class='result-panel'>
       <h2>{{ resultTitle }}</h2>
@@ -326,9 +181,14 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getFirstDamageEffect } from '@/game/combat/combatEngine';
 import { useCombatStore } from '@/stores/combat';
-import type { CardDefinition, CardInstance, CardTargetType, CardType, StatusId } from '@/game/cards/cardTypes';
-import type { EquipmentItem, EquipmentSlot } from '@/game/equipment/equipmentTypes';
-import type { EnemyIntent, InventoryItem } from '@/game/combat/combatTypes';
+import CombatHeader from '@/components/combat/CombatHeader.vue';
+import EnemyUnit from '@/components/combat/enemies/EnemyUnit.vue';
+import StatusIcons from '@/components/combat/status/StatusIcons.vue';
+import CardPileModal from '@/components/combat/modals/CardPileModal.vue';
+import InventoryModal from '@/components/combat/modals/InventoryModal.vue';
+import RewardModal from '@/components/combat/rewards/RewardModal.vue';
+import CardRewardModal from '@/components/combat/rewards/CardRewardModal.vue';
+import type { CardDefinition, CardInstance, CardTargetType, CardType } from '@/game/cards/cardTypes';
 
 const router = useRouter();
 const combatStore = useCombatStore();
@@ -375,43 +235,6 @@ const cardTypeLabels: Record<CardType, string> = {
   talent: 'Талант',
 };
 
-const rarityLabels: Record<CardDefinition['rarity'], string> = {
-  starter: 'Стартовая',
-  common: 'Серая',
-  uncommon: 'Зелёная',
-  rare: 'Синяя',
-};
-
-const lootRarityLabels = {
-  common: 'Серый предмет',
-  uncommon: 'Зелёный предмет',
-  rare: 'Синий предмет',
-  legendary: 'Оранжевый предмет',
-};
-
-const statusLabels: Record<StatusId, string> = {
-  aim: 'Прицел',
-  burn: 'Горение',
-  weak: 'Слабость',
-  vulnerable: 'Уязвимость',
-  reinforcedBattery: 'Усиленная батарея',
-};
-
-const inventoryKindLabels: Record<InventoryItem['kind'], string> = {
-  material: 'Материал',
-  medicine: 'Медицина',
-  component: 'Компонент',
-  loot: 'Лут',
-};
-
-const equipmentSlotLabels: Record<EquipmentSlot, string> = {
-  weapon: 'Оружие',
-  body: 'Броня',
-  pants: 'Штаны',
-  boots: 'Ботинки',
-  utility: 'Доп. оборудование',
-};
-
 const draggedCard = computed(() => {
   if (!dragState.value) {
     return null;
@@ -422,7 +245,6 @@ const draggedCard = computed(() => {
 
 const isAiming = computed(() => dragState.value !== null && draggedCard.value?.definition.target === 'enemy');
 
-const playerStatuses = computed(() => (combatState.value ? formatStatuses(combatState.value.player.statuses) : []));
 
 const rewardState = computed(() => combatState.value?.reward ?? null);
 
@@ -512,19 +334,6 @@ const cardModalTitle = computed(() => {
   return 'Израсходованные карты';
 });
 
-const equipmentSlots = computed<Array<{ id: EquipmentSlot; label: string; item?: EquipmentItem }>>(() => {
-  if (!combatState.value) {
-    return [];
-  }
-
-  const slots: EquipmentSlot[] = ['weapon', 'body', 'pants', 'boots', 'utility'];
-
-  return slots.map((slot) => ({
-    id: slot,
-    label: equipmentSlotLabels[slot],
-    item: combatState.value?.equippedItems[slot],
-  }));
-});
 
 const arrowPath = computed(() => {
   if (!dragState.value) {
@@ -555,73 +364,6 @@ const getHpPercent = (hp: number, maxHp: number): number => {
   }
 
   return Math.max(0, Math.min(100, (hp / maxHp) * 100));
-};
-
-const formatStatuses = (statuses: Partial<Record<StatusId, number>>): string[] =>
-  Object.entries(statuses)
-    .filter(([, value]) => (value ?? 0) > 0)
-    .map(([status, value]) => `${statusLabels[status as StatusId]} ${value}`);
-
-const getStatusIcon = (statusText: string): string => {
-  if (statusText.startsWith(statusLabels.aim)) {
-    return '◎';
-  }
-
-  if (statusText.startsWith(statusLabels.burn)) {
-    return '🔥';
-  }
-
-  if (statusText.startsWith(statusLabels.weak)) {
-    return '↓';
-  }
-
-  if (statusText.startsWith(statusLabels.vulnerable)) {
-    return '◇';
-  }
-
-  if (statusText.startsWith(statusLabels.reinforcedBattery)) {
-    return '▣';
-  }
-
-  return '•';
-};
-
-const getStatusTooltip = (statusText: string): string => statusText;
-
-const getIntentIcon = (intentType: EnemyIntent['type']): string => {
-  if (intentType === 'attack') {
-    return '⚔';
-  }
-
-  if (intentType === 'block') {
-    return '🛡';
-  }
-
-  return '☣';
-};
-
-const intentTitle = (intent: EnemyIntent): string => {
-  if (intent.type === 'attack') {
-    return 'Атака';
-  }
-
-  if (intent.type === 'block') {
-    return 'Защита';
-  }
-
-  return 'Дебафф';
-};
-
-const intentDescription = (intent: EnemyIntent): string => {
-  if (intent.type === 'attack') {
-    return `${intent.damage * intent.hits} урона`;
-  }
-
-  if (intent.type === 'block') {
-    return 'Накладывает защиту.';
-  }
-
-  return 'Накладывает негативный эффект.';
 };
 
 const getCardIcon = (type: CardType, target: CardTargetType): string => {
@@ -898,69 +640,6 @@ onBeforeUnmount(() => {
     user-select: none;
 }
 
-.top-bar {
-    position: absolute;
-    top: 18px;
-    left: 24px;
-    right: 24px;
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 16px;
-    border: 1px solid rgba(126, 204, 255, 0.24);
-    border-radius: 18px;
-    background: rgba(8, 15, 22, 0.82);
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(12px);
-}
-
-.top-bar button {
-    border: 1px solid rgba(142, 221, 255, 0.26);
-    border-radius: 12px;
-    background: rgba(14, 35, 48, 0.82);
-    color: #d9f3ff;
-    cursor: pointer;
-    font-weight: 800;
-}
-
-.hub-button,
-.inventory-button,
-.settings-button,
-.deck-size,
-.test-win-button {
-    min-height: 38px;
-    padding: 0 14px;
-}
-
-.inventory-button {
-    border-color: rgba(93, 255, 174, 0.38) !important;
-}
-
-.test-win-button {
-    border-color: rgba(255, 198, 93, 0.45);
-    color: #ffe2a4;
-}
-
-.hero-name {
-    font-size: 22px;
-    letter-spacing: 0.04em;
-}
-
-.top-stat {
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    font-weight: 900;
-}
-
-.top-stat.money {
-    color: #5dffae;
-}
-
-.top-spacer {
-    flex: 1;
-}
 
 .battlefield {
     position: absolute;
@@ -1117,27 +796,6 @@ onBeforeUnmount(() => {
     text-shadow: 0 1px 3px #000;
 }
 
-.statuses {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-height: 24px;
-    margin-top: 8px;
-}
-
-.statuses span {
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    border: 1px solid rgba(123, 214, 255, 0.32);
-    border-radius: 50%;
-    background: rgba(123, 214, 255, 0.15);
-    color: #bfefff;
-    font-size: 14px;
-    font-weight: 900;
-    cursor: help;
-}
 
 .enemies-area {
     position: absolute;
@@ -1151,146 +809,6 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
 }
 
-.enemy-unit {
-    position: relative;
-    width: 210px;
-    height: 420px;
-    transition: filter 0.16s ease,
-    transform 0.16s ease;
-}
-
-.enemy-unit.targetable {
-    cursor: crosshair;
-}
-
-.enemy-unit.hovered {
-    filter: drop-shadow(0 0 20px rgba(99, 230, 255, 0.9));
-    transform: translateY(-8px) scale(1.04);
-}
-
-.enemy-unit.defeated {
-    opacity: 0.34;
-    filter: grayscale(0.9);
-}
-
-.intent-card {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    display: grid;
-    min-width: 126px;
-    border-radius: 14px;
-    transform: translateX(-50%);
-    text-align: center;
-    background: rgba(7, 14, 20, 0.82);
-    border: 1px solid rgba(154, 223, 255, 0.18);
-    min-height: 76px;
-    gap: 6px;
-    padding: 10px 14px;
-}
-
-.intent-card strong {
-    font-size: 13px;
-}
-
-.intent-card span {
-    color: #b8ccd8;
-    font-size: 12px;
-    line-height: 1.25;
-}
-
-.intent-block,
-.intent-debuff {
-    display: grid;
-    place-items: center;
-    min-width: 56px;
-    min-height: 56px;
-    padding: 0;
-    cursor: help;
-}
-
-.intent-only-icon {
-    color: inherit;
-    font-size: 24px;
-    line-height: 1;
-}
-
-
-.intent-attack {
-    color: #ffaca2;
-}
-
-.intent-block {
-    color: #9be9ff;
-}
-
-.intent-debuff {
-    color: #d4a7ff;
-}
-
-.intent-icon-row {
-    position: absolute;
-    left: 50%;
-    top: 96px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transform: translateX(-50%);
-    font-size: 20px;
-    font-weight: 1000;
-}
-
-.enemy-core {
-    position: absolute;
-    left: 50%;
-    top: 170px;
-    width: 130px;
-    height: 160px;
-    border-radius: 24px 24px 18px 18px;
-    transform: translateX(-50%);
-    background: linear-gradient(180deg, #76828a, #2e3740);
-    box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.08),
-    0 0 28px rgba(93, 120, 130, 0.28);
-}
-
-.enemy-core::before {
-    content: '';
-    position: absolute;
-    left: 24px;
-    top: -42px;
-    width: 78px;
-    height: 62px;
-    border-radius: 22px 22px 12px 12px;
-    background: linear-gradient(180deg, #9ca7ad, #414c55);
-}
-
-.enemy-core::after {
-    content: '';
-    position: absolute;
-    left: 31px;
-    top: -15px;
-    width: 68px;
-    height: 10px;
-    border-radius: 999px;
-    background: #ff6657;
-    box-shadow: 0 0 16px rgba(255, 86, 73, 0.72);
-}
-
-.enemy-rusty-bot-2 {
-    border-radius: 45%;
-}
-
-.enemy-rusty-bot-3 {
-    width: 116px;
-    border-radius: 50%;
-}
-
-.enemy-bars {
-    left: 50%;
-    top: 372px;
-    width: 230px;
-    transform: translateX(-50%);
-}
 
 .bottom-hud {
     position: absolute;
@@ -1545,314 +1063,6 @@ onBeforeUnmount(() => {
     box-shadow: 0 18px 28px rgba(0, 0, 0, 0.34);
 }
 
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 700;
-    display: grid;
-    place-items: center;
-    background: rgba(2, 5, 8, 0.74);
-    backdrop-filter: blur(6px);
-}
-
-.reward-backdrop,
-.card-reward-backdrop {
-    inset: 82px 0 0;
-    z-index: 180;
-    background: rgba(2, 5, 8, 0.56);
-}
-
-.cards-modal,
-.inventory-modal {
-    position: relative;
-    width: min(1120px, calc(100vw - 72px));
-    max-height: min(760px, calc(100vh - 72px));
-    overflow: auto;
-    padding: 28px;
-    border: 1px solid rgba(130, 222, 255, 0.28);
-    border-radius: 26px;
-    background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
-    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
-}
-
-.modal-close {
-    position: absolute;
-    top: 16px;
-    right: 18px;
-    width: 38px;
-    height: 38px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    color: #effaff;
-    cursor: pointer;
-    font-size: 24px;
-}
-
-.modal-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
-    gap: 16px;
-}
-
-.modal-card,
-.equipment-card,
-.carried-item {
-    position: relative;
-    min-height: 154px;
-    padding: 16px;
-    border: 1px solid rgba(150, 221, 255, 0.18);
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.modal-card-cost {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #65e1ff;
-    color: #07131f;
-    font-weight: 1000;
-}
-
-.modal-card strong,
-.equipment-card strong,
-.carried-item strong {
-    display: block;
-    padding-right: 30px;
-    color: #f3fbff;
-}
-
-.modal-card small,
-.equipment-card small,
-.carried-item small {
-    color: #a9bdc9;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-
-.modal-card p,
-.equipment-card p,
-.carried-item p {
-    color: #c9d9e1;
-    font-size: 13px;
-    line-height: 1.35;
-}
-
-.empty-modal-text {
-    color: #b8c9d1;
-}
-
-.inventory-section + .inventory-section {
-    margin-top: 26px;
-}
-
-.equipment-grid,
-.carried-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-}
-
-
-.reward-modal,
-.card-reward-modal {
-    position: relative;
-    width: min(620px, calc(100vw - 72px));
-    max-height: min(760px, calc(100vh - 72px));
-    overflow: auto;
-    padding: 28px;
-    border: 1px solid rgba(130, 222, 255, 0.28);
-    border-radius: 26px;
-    background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
-    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
-}
-
-.card-reward-modal {
-    width: min(980px, calc(100vw - 72px));
-}
-
-.reward-subtitle {
-    margin: 0 0 22px;
-    color: #b9ccd8;
-}
-
-.reward-list {
-    display: grid;
-    gap: 12px;
-}
-
-.reward-row {
-    position: relative;
-    display: grid;
-    grid-template-columns: 46px 1fr;
-    align-items: center;
-    gap: 14px;
-    min-height: 68px;
-    padding: 12px 16px;
-    border: 1px solid rgba(151, 225, 255, 0.24);
-    border-radius: 14px;
-    background: rgba(129, 188, 192, 0.2);
-    color: #eaf8ff;
-    cursor: pointer;
-    text-align: left;
-    transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
-}
-
-.reward-row:hover {
-    transform: translateX(4px);
-    border-color: rgba(244, 207, 99, 0.9);
-    background: rgba(129, 188, 192, 0.32);
-}
-
-.reward-row-icon {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #f4d469;
-    font-size: 22px;
-    font-weight: 1000;
-}
-
-.reward-row-content {
-    display: grid;
-    gap: 3px;
-}
-
-.reward-row-content strong {
-    font-size: 17px;
-}
-
-.reward-row-content small {
-    color: #b8ccd8;
-    font-size: 12px;
-}
-
-.reward-loot-tooltip {
-    position: absolute;
-    left: calc(100% + 14px);
-    top: 50%;
-    z-index: 20;
-    display: none;
-    width: 260px;
-    padding: 12px 14px;
-    border: 1px solid rgba(130, 222, 255, 0.32);
-    border-radius: 14px;
-    background: rgba(6, 13, 20, 0.96);
-    color: #d8edf7;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.35;
-    transform: translateY(-50%);
-    box-shadow: 0 20px 36px rgba(0, 0, 0, 0.44);
-    pointer-events: none;
-}
-
-.loot-reward-row:hover .reward-loot-tooltip {
-    display: block;
-}
-
-.reward-continue-button {
-    min-height: 46px;
-    margin-top: 22px;
-    padding: 0 22px;
-    border: 0;
-    border-radius: 15px;
-    background: #73e4ff;
-    color: #06111d;
-    cursor: pointer;
-    font-weight: 1000;
-}
-
-.reward-card-choice-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(180px, 1fr));
-    gap: 18px;
-}
-
-.reward-card-choice {
-    position: relative;
-    display: grid;
-    min-height: 260px;
-    grid-template-rows: 36px 24px 1fr;
-    gap: 10px;
-    padding: 18px;
-    border: 2px solid rgba(214, 236, 255, 0.22);
-    border-radius: 20px;
-    background: linear-gradient(180deg, rgba(40, 58, 73, 0.98), rgba(12, 19, 28, 0.98));
-    cursor: pointer;
-    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-.reward-card-choice:hover {
-    transform: translateY(-10px) scale(1.04);
-    border-color: rgba(116, 232, 255, 0.82);
-    box-shadow: 0 0 28px rgba(98, 221, 255, 0.44);
-}
-
-.reward-card-choice.flying {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    z-index: 1000;
-    width: 210px;
-    min-height: 260px;
-    pointer-events: none;
-    animation: reward-card-fly-to-deck 0.65s ease-in forwards;
-}
-
-.reward-card-cost {
-    position: absolute;
-    left: 14px;
-    top: 14px;
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #63dfff, #1662b4);
-    color: #06111d;
-    font-weight: 1000;
-}
-
-.reward-card-choice strong {
-    padding-left: 40px;
-    color: #f4fbff;
-    font-size: 18px;
-    line-height: 1.1;
-}
-
-.reward-card-choice small {
-    color: #a9bdc9;
-    font-weight: 900;
-    text-transform: uppercase;
-}
-
-.reward-card-choice p {
-    color: #d5e6ee;
-    font-size: 13px;
-    line-height: 1.35;
-}
-
-@keyframes reward-card-fly-to-deck {
-    0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1) rotate(0deg);
-    }
-
-    100% {
-        opacity: 0.2;
-        transform: translate(calc(50vw - 240px), calc(-50vh + 42px)) scale(0.18) rotate(14deg);
-    }
-}
 
 .result-panel {
     position: fixed;
