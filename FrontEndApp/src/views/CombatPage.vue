@@ -239,7 +239,7 @@
             v-if='rewardState && !rewardState.isMoneyTaken'
             type='button'
             class='reward-row money-reward-row'
-            @click='combatStore.claimMoneyReward'
+            @click='claimMoneyReward'
           >
             <span class='reward-row-icon'>₽</span>
             <span class='reward-row-content'>
@@ -253,21 +253,23 @@
             :key='item.id'
             type='button'
             class='reward-row loot-reward-row'
-            @click='combatStore.claimLootReward'
+            @click='claimLootReward'
           >
             <span class='reward-row-icon'>✦</span>
             <span class='reward-row-content'>
               <strong>{{ item.name }} ×{{ item.amount }}</strong>
               <small>{{ lootRarityLabels[item.rarity] }}</small>
+              <span class='reward-loot-tooltip'>{{ item.description }}</span>
             </span>
           </button>
         </div>
 
-        <button type='button' class='reward-continue-button' @click='goHub'>Продолжить</button>
+        <button type='button' class='reward-continue-button' @click='continueRaid'>Продолжить вылазку</button>
       </div>
     </section>
 
-    <section v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop' @click.self='closeCardRewardModal'>
+    <section v-if='cardRewardModalOpen && rewardState' class='modal-backdrop card-reward-backdrop'
+             @click.self='closeCardRewardModal'>
       <div class='card-reward-modal'>
         <button type='button' class='modal-close' @click='closeCardRewardModal'>×</button>
         <h2>Выберите карту</h2>
@@ -404,8 +406,20 @@ const playerStatuses = computed(() => (combatState.value ? formatStatuses(combat
 
 const rewardState = computed(() => combatState.value?.reward ?? null);
 
+const hasAvailableReward = computed(() => {
+  if (!rewardState.value) {
+    return false;
+  }
+
+  const hasCardReward = !rewardState.value.isCardRewardTaken;
+  const hasMoneyReward = !rewardState.value.isMoneyTaken;
+  const hasLootReward = rewardState.value.loot.length > 0 && !rewardState.value.isLootTaken;
+
+  return hasCardReward || hasMoneyReward || hasLootReward;
+});
+
 const showRewardModal = computed(() =>
-  combatState.value?.phase === 'won' && rewardState.value !== null && !cardRewardModalOpen.value,
+  combatState.value?.phase === 'won' && rewardState.value !== null && hasAvailableReward.value && !cardRewardModalOpen.value,
 );
 
 const visibleRewardLoot = computed(() => {
@@ -762,6 +776,28 @@ const closeCardRewardModal = (): void => {
   cardRewardModalOpen.value = false;
 };
 
+const continueRaid = (): void => {
+  goHub();
+};
+
+const continueIfRewardsFinished = (): void => {
+  window.setTimeout(() => {
+    if (!hasAvailableReward.value) {
+      continueRaid();
+    }
+  }, 0);
+};
+
+const claimMoneyReward = (): void => {
+  combatStore.claimMoneyReward();
+  continueIfRewardsFinished();
+};
+
+const claimLootReward = (): void => {
+  combatStore.claimLootReward();
+  continueIfRewardsFinished();
+};
+
 const selectRewardCard = (cardId: string): void => {
   if (flyingRewardCardId.value) {
     return;
@@ -773,6 +809,7 @@ const selectRewardCard = (cardId: string): void => {
     combatStore.chooseCardReward(cardId);
     flyingRewardCardId.value = null;
     cardRewardModalOpen.value = false;
+    continueIfRewardsFinished();
   }, 650);
 };
 
@@ -1441,6 +1478,13 @@ onBeforeUnmount(() => {
     backdrop-filter: blur(6px);
 }
 
+.reward-backdrop,
+.card-reward-backdrop {
+    inset: 82px 0 0;
+    z-index: 180;
+    background: rgba(2, 5, 8, 0.56);
+}
+
 .cards-modal,
 .inventory-modal {
     position: relative;
@@ -1541,171 +1585,196 @@ onBeforeUnmount(() => {
 
 .reward-modal,
 .card-reward-modal {
-  position: relative;
-  width: min(620px, calc(100vw - 72px));
-  max-height: min(760px, calc(100vh - 72px));
-  overflow: auto;
-  padding: 28px;
-  border: 1px solid rgba(130, 222, 255, 0.28);
-  border-radius: 26px;
-  background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
-  box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
+    position: relative;
+    width: min(620px, calc(100vw - 72px));
+    max-height: min(760px, calc(100vh - 72px));
+    overflow: auto;
+    padding: 28px;
+    border: 1px solid rgba(130, 222, 255, 0.28);
+    border-radius: 26px;
+    background: linear-gradient(180deg, rgba(12, 25, 36, 0.98), rgba(6, 11, 18, 0.98));
+    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
 }
 
 .card-reward-modal {
-  width: min(980px, calc(100vw - 72px));
+    width: min(980px, calc(100vw - 72px));
 }
 
 .reward-subtitle {
-  margin: 0 0 22px;
-  color: #b9ccd8;
+    margin: 0 0 22px;
+    color: #b9ccd8;
 }
 
 .reward-list {
-  display: grid;
-  gap: 12px;
+    display: grid;
+    gap: 12px;
 }
 
 .reward-row {
-  display: grid;
-  grid-template-columns: 46px 1fr;
-  align-items: center;
-  gap: 14px;
-  min-height: 68px;
-  padding: 12px 16px;
-  border: 1px solid rgba(151, 225, 255, 0.24);
-  border-radius: 14px;
-  background: rgba(129, 188, 192, 0.2);
-  color: #eaf8ff;
-  cursor: pointer;
-  text-align: left;
-  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+    position: relative;
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    align-items: center;
+    gap: 14px;
+    min-height: 68px;
+    padding: 12px 16px;
+    border: 1px solid rgba(151, 225, 255, 0.24);
+    border-radius: 14px;
+    background: rgba(129, 188, 192, 0.2);
+    color: #eaf8ff;
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
 }
 
 .reward-row:hover {
-  transform: translateX(4px);
-  border-color: rgba(244, 207, 99, 0.9);
-  background: rgba(129, 188, 192, 0.32);
+    transform: translateX(4px);
+    border-color: rgba(244, 207, 99, 0.9);
+    background: rgba(129, 188, 192, 0.32);
 }
 
 .reward-row-icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f4d469;
-  font-size: 22px;
-  font-weight: 1000;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4d469;
+    font-size: 22px;
+    font-weight: 1000;
 }
 
 .reward-row-content {
-  display: grid;
-  gap: 3px;
+    display: grid;
+    gap: 3px;
 }
 
 .reward-row-content strong {
-  font-size: 17px;
+    font-size: 17px;
 }
 
 .reward-row-content small {
-  color: #b8ccd8;
-  font-size: 12px;
+    color: #b8ccd8;
+    font-size: 12px;
+}
+
+.reward-loot-tooltip {
+    position: absolute;
+    left: calc(100% + 14px);
+    top: 50%;
+    z-index: 20;
+    display: none;
+    width: 260px;
+    padding: 12px 14px;
+    border: 1px solid rgba(130, 222, 255, 0.32);
+    border-radius: 14px;
+    background: rgba(6, 13, 20, 0.96);
+    color: #d8edf7;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+    transform: translateY(-50%);
+    box-shadow: 0 20px 36px rgba(0, 0, 0, 0.44);
+    pointer-events: none;
+}
+
+.loot-reward-row:hover .reward-loot-tooltip {
+    display: block;
 }
 
 .reward-continue-button {
-  min-height: 46px;
-  margin-top: 22px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 15px;
-  background: #73e4ff;
-  color: #06111d;
-  cursor: pointer;
-  font-weight: 1000;
+    min-height: 46px;
+    margin-top: 22px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 15px;
+    background: #73e4ff;
+    color: #06111d;
+    cursor: pointer;
+    font-weight: 1000;
 }
 
 .reward-card-choice-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 18px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 18px;
 }
 
 .reward-card-choice {
-  position: relative;
-  display: grid;
-  min-height: 260px;
-  grid-template-rows: 36px 24px 1fr;
-  gap: 10px;
-  padding: 18px;
-  border: 2px solid rgba(214, 236, 255, 0.22);
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(40, 58, 73, 0.98), rgba(12, 19, 28, 0.98));
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    position: relative;
+    display: grid;
+    min-height: 260px;
+    grid-template-rows: 36px 24px 1fr;
+    gap: 10px;
+    padding: 18px;
+    border: 2px solid rgba(214, 236, 255, 0.22);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(40, 58, 73, 0.98), rgba(12, 19, 28, 0.98));
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .reward-card-choice:hover {
-  transform: translateY(-10px) scale(1.04);
-  border-color: rgba(116, 232, 255, 0.82);
-  box-shadow: 0 0 28px rgba(98, 221, 255, 0.44);
+    transform: translateY(-10px) scale(1.04);
+    border-color: rgba(116, 232, 255, 0.82);
+    box-shadow: 0 0 28px rgba(98, 221, 255, 0.44);
 }
 
 .reward-card-choice.flying {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  z-index: 1000;
-  width: 210px;
-  min-height: 260px;
-  pointer-events: none;
-  animation: reward-card-fly-to-deck 0.65s ease-in forwards;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 1000;
+    width: 210px;
+    min-height: 260px;
+    pointer-events: none;
+    animation: reward-card-fly-to-deck 0.65s ease-in forwards;
 }
 
 .reward-card-cost {
-  position: absolute;
-  left: 14px;
-  top: 14px;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #63dfff, #1662b4);
-  color: #06111d;
-  font-weight: 1000;
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #63dfff, #1662b4);
+    color: #06111d;
+    font-weight: 1000;
 }
 
 .reward-card-choice strong {
-  padding-left: 40px;
-  color: #f4fbff;
-  font-size: 18px;
-  line-height: 1.1;
+    padding-left: 40px;
+    color: #f4fbff;
+    font-size: 18px;
+    line-height: 1.1;
 }
 
 .reward-card-choice small {
-  color: #a9bdc9;
-  font-weight: 900;
-  text-transform: uppercase;
+    color: #a9bdc9;
+    font-weight: 900;
+    text-transform: uppercase;
 }
 
 .reward-card-choice p {
-  color: #d5e6ee;
-  font-size: 13px;
-  line-height: 1.35;
+    color: #d5e6ee;
+    font-size: 13px;
+    line-height: 1.35;
 }
 
 @keyframes reward-card-fly-to-deck {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
-  }
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    }
 
-  100% {
-    opacity: 0.2;
-    transform: translate(calc(50vw - 240px), calc(-50vh + 42px)) scale(0.18) rotate(14deg);
-  }
+    100% {
+        opacity: 0.2;
+        transform: translate(calc(50vw - 240px), calc(-50vh + 42px)) scale(0.18) rotate(14deg);
+    }
 }
 
 .result-panel {
