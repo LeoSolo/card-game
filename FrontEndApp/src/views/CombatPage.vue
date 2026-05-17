@@ -221,41 +221,46 @@
         <h2>Награда за бой</h2>
         <p class='reward-subtitle'>Забери награды перед возвращением на маршрут.</p>
 
-        <div class='reward-grid'>
+        <div class='reward-list'>
           <button
             v-if='rewardState && !rewardState.isCardRewardTaken'
             type='button'
-            class='reward-tile card-reward-tile'
+            class='reward-row card-reward-row'
             @click='openCardRewardModal'
           >
-            <strong>Выбрать карту</strong>
-            <span>Одна из трёх случайных карт Татьяны</span>
+            <span class='reward-row-icon'>▧</span>
+            <span class='reward-row-content'>
+              <strong>Выбрать карту</strong>
+              <small>Добавить одну из трёх карт в колоду</small>
+            </span>
           </button>
 
           <button
             v-if='rewardState && !rewardState.isMoneyTaken'
             type='button'
-            class='reward-tile money-reward-tile'
+            class='reward-row money-reward-row'
             @click='combatStore.claimMoneyReward'
           >
-            <strong>₽ {{ rewardState.money }}</strong>
-            <span>Деньги</span>
+            <span class='reward-row-icon'>₽</span>
+            <span class='reward-row-content'>
+              <strong>{{ rewardState.money }} денег</strong>
+              <small>Забрать в инвентарь вылазки</small>
+            </span>
           </button>
 
           <button
-            v-if='rewardState && rewardState.loot.length > 0 && !rewardState.isLootTaken'
+            v-for='item in visibleRewardLoot'
+            :key='item.id'
             type='button'
-            class='reward-tile loot-reward-tile'
+            class='reward-row loot-reward-row'
             @click='combatStore.claimLootReward'
           >
-            <strong>Лут</strong>
-            <span v-for='item in rewardState.loot' :key='item.id'>{{ item.name }}</span>
+            <span class='reward-row-icon'>✦</span>
+            <span class='reward-row-content'>
+              <strong>{{ item.name }} ×{{ item.amount }}</strong>
+              <small>{{ lootRarityLabels[item.rarity] }}</small>
+            </span>
           </button>
-
-          <article v-if='rewardState && rewardState.loot.length === 0' class='reward-tile empty-loot-tile'>
-            <strong>Лут не найден</strong>
-            <span>В этот раз ничего ценного не выпало.</span>
-          </article>
         </div>
 
         <button type='button' class='reward-continue-button' @click='goHub'>Продолжить</button>
@@ -355,6 +360,13 @@ const rarityLabels: Record<CardDefinition['rarity'], string> = {
   rare: 'Синяя',
 };
 
+const lootRarityLabels = {
+  common: 'Серый предмет',
+  uncommon: 'Зелёный предмет',
+  rare: 'Синий предмет',
+  legendary: 'Оранжевый предмет',
+};
+
 const statusLabels: Record<StatusId, string> = {
   aim: 'Прицел',
   burn: 'Горение',
@@ -395,6 +407,14 @@ const rewardState = computed(() => combatState.value?.reward ?? null);
 const showRewardModal = computed(() =>
   combatState.value?.phase === 'won' && rewardState.value !== null && !cardRewardModalOpen.value,
 );
+
+const visibleRewardLoot = computed(() => {
+  if (!rewardState.value || rewardState.value.isLootTaken) {
+    return [];
+  }
+
+  return rewardState.value.loot;
+});
 
 const playerHpPercent = computed(() => {
   if (!combatState.value) {
@@ -1522,7 +1542,7 @@ onBeforeUnmount(() => {
 .reward-modal,
 .card-reward-modal {
   position: relative;
-  width: min(980px, calc(100vw - 72px));
+  width: min(620px, calc(100vw - 72px));
   max-height: min(760px, calc(100vh - 72px));
   overflow: auto;
   padding: 28px;
@@ -1532,43 +1552,66 @@ onBeforeUnmount(() => {
   box-shadow: 0 34px 80px rgba(0, 0, 0, 0.56);
 }
 
+.card-reward-modal {
+  width: min(980px, calc(100vw - 72px));
+}
+
 .reward-subtitle {
   margin: 0 0 22px;
   color: #b9ccd8;
 }
 
-.reward-grid {
+.reward-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
-.reward-tile {
+.reward-row {
   display: grid;
-  min-height: 150px;
-  gap: 8px;
-  align-content: center;
-  padding: 18px;
-  border: 1px solid rgba(151, 225, 255, 0.22);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
+  grid-template-columns: 46px 1fr;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 12px 16px;
+  border: 1px solid rgba(151, 225, 255, 0.24);
+  border-radius: 14px;
+  background: rgba(129, 188, 192, 0.2);
   color: #eaf8ff;
   cursor: pointer;
   text-align: left;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
 }
 
-.reward-tile strong {
+.reward-row:hover {
+  transform: translateX(4px);
+  border-color: rgba(244, 207, 99, 0.9);
+  background: rgba(129, 188, 192, 0.32);
+}
+
+.reward-row-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4d469;
   font-size: 22px;
+  font-weight: 1000;
 }
 
-.reward-tile span {
+.reward-row-content {
+  display: grid;
+  gap: 3px;
+}
+
+.reward-row-content strong {
+  font-size: 17px;
+}
+
+.reward-row-content small {
   color: #b8ccd8;
-  font-size: 13px;
-}
-
-.empty-loot-tile {
-  cursor: default;
-  opacity: 0.7;
+  font-size: 12px;
 }
 
 .reward-continue-button {
