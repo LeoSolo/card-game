@@ -1,17 +1,22 @@
 <template>
-  <header class="top-bar">
-    <button type="button" class="hub-button" @click="$emit('goHub')">← Хаб</button>
-    <button type="button" class="inventory-button" @click="$emit('openInventory')">🎒 Инвентарь</button>
-    <strong class="hero-name">Татьяна</strong>
-    <div class="top-stat hp">♥ {{ playerHp }}/{{ playerMaxHp }}</div>
-    <div class="top-stat money">₽ {{ money }}</div>
-    <div class="top-spacer"></div>
-    <button type="button" class="deck-size" @click="$emit('openDeck')">Колода {{ totalDeckSize }}</button>
-    <button type="button" class="settings-button" @click="$emit('restart')">↻</button>
+  <header class='top-bar'>
+    <button type='button' class='hub-button' @click='$emit("goHub")'>← Хаб</button>
+    <button type='button' class='inventory-button' @click='$emit("openInventory")'>🎒 Инвентарь</button>
+
+    <strong class='hero-name'>Татьяна</strong>
+
+    <div class='top-stat hp'>♥ {{ playerHp }}/{{ playerMaxHp }}</div>
+    <div class='top-stat money'>₽ {{ money }}</div>
+
+    <div class='top-spacer'></div>
+
+    <button type='button' class='deck-size' @click='$emit("openDeck")'>Колода {{ totalDeckSize }}</button>
+    <button type='button' class='settings-button' @click='$emit("restartCombat")'>↻</button>
+    <button type='button' class='test-win-button' @click='$emit("winCombatForTests")'>Выиграть бой</button>
   </header>
 </template>
 
-<script setup lang="ts">
+<script setup lang='ts'>
 defineProps<{
   playerHp: number;
   playerMaxHp: number;
@@ -23,7 +28,8 @@ defineEmits<{
   goHub: [];
   openInventory: [];
   openDeck: [];
-  restart: [];
+  restartCombat: [];
+  winCombatForTests: [];
 }>();
 </script>
 
@@ -57,13 +63,19 @@ defineEmits<{
 .hub-button,
 .inventory-button,
 .settings-button,
-.deck-size {
+.deck-size,
+.test-win-button {
   min-height: 38px;
   padding: 0 14px;
 }
 
 .inventory-button {
-  border-color: rgba(93, 255, 174, 0.38) !important;
+  border-color: rgba(93, 255, 174, 0.38);
+}
+
+.test-win-button {
+  border-color: rgba(255, 198, 93, 0.45);
+  color: #ffe2a4;
 }
 
 .hero-name {
